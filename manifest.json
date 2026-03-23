@@ -1,0 +1,28 @@
+{
+  "name": "Concrete Mix Calculator",
+  "short_name": "Concrete Calc",
+  "description": "Professional concrete mix calculator for paver production",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M12 2C8.5 2 8.5 5.5 8.5 8.5S8.5 15 12 15s3.5-3.5 3.5-7S15.5 2 12 2zm0 10c-1.9 0-3.5-1.6-3.5-3.5S10.1 5 12 5s3.5 1.6 3.5 3.5S13.9 15 12 15z'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M12 2C8.5 2 8.5 5.5 8.5 8.5S8.5 15 12 15s3.5-3.5 3.5-7S15.5 2 12 2zm0 10c-1.9 0-3.5-1.6-3.5-3.5S10.1 5 12 5s3.5 1.6 3.5 3.5S13.9 15 12 15z'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "tools"],
+  "lang": "en",
+  "dir": "ltr"
+}
