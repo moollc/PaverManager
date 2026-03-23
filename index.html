@@ -121,6 +121,7 @@
                             <input type="number" id="project-quantity" class="input-number" value="10" min="1" step="1">
                             <span class="input-unit">pcs</span>
                         </div>
+                        <div class="input-hint">Total pavers in this production run — sets material quantities and job cost.</div>
                     </div>
                     <div class="input-group">
                         <label class="input-label">Pavers Produced Per Day</label>
@@ -128,6 +129,7 @@
                             <input type="number" id="project-pavers-per-day" class="input-number" value="10" min="1" step="10">
                             <span class="input-unit">pavers/day</span>
                         </div>
+                        <div class="input-hint">Your planned crew output rate — used to calculate labour cost per paver.</div>
                     </div>
                     <div class="input-group">
                         <label class="input-label">Number of Workers</label>
@@ -617,9 +619,10 @@
                             <input type="number" id="inventory-pavers-today" class="input-number" value="0" min="0" step="1">
                             <span class="input-unit">pavers</span>
                         </div>
+                        <div class="input-hint">Log today's actual output to deduct materials from stock. Does not affect planned costs or pricing.</div>
                     </div>
                     <div class="result-row">
-                        <span class="result-label">Daily Production Rate (from Project)</span>
+                        <span class="result-label">Planned Production Rate</span>
                         <span class="result-value" id="inventory-daily-rate">--</span>
                     </div>
                 </div>
