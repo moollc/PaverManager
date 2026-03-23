@@ -1,4 +1,4 @@
-import { calculate_all, get_pigment_options } from 'sprat-pwa';
+import wasmInit, { calculate_all, get_pigment_options } from 'sprat-pwa';
 
 // State management
 const state = {
@@ -2168,6 +2168,9 @@ const syncInputsFromState = () => {
 // Initialize application
 const init = async () => {
     try {
+        // Initialize WASM module
+        await wasmInit();
+
         // Apply theme before paint to prevent flash
         initializeTheme();
 
