@@ -1,0 +1,2136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="Professional concrete mix calculator for paver production">
+    <title>Concrete Mix Calculator</title>
+    <link rel="manifest" href="manifest.json">
+    <!-- Icons are now handled by inline SVG in js/icons.js -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Concrete Calc">
+    
+    <!-- Import Map for WASM -->
+    <script type="importmap">
+    {
+        "imports": {
+            "sprat-pwa": "./wasm/pkg/sprat_pwa.js"
+        }
+    }
+    </script>
+    
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+                <div class="header-content">
+                    <div class="header-left">
+                        <div class="header-title" id="header-project-name">Concrete Mix Calculator</div>
+                        <div class="header-mix" id="header-mix-name">Mix 1</div>
+                    </div>
+                    <div id="header-stock-status" role="button" tabindex="0" aria-label="Stock status" style="display:none; cursor:pointer; text-align:center; line-height:1.2; font-size:0.8rem; flex:1; min-width:0;"></div>
+                    <div class="header-stats">
+                        <div class="header-stat">
+                            <span class="header-stat-value" id="header-quantity">--</span>
+                            <span class="header-stat-label">pavers</span>
+                        </div>
+                        <div class="header-stat">
+                            <span class="header-stat-value" id="header-cost-per-paver">JMD 0</span>
+                            <span class="header-stat-label">cost/paver</span>
+                        </div>
+                        <div class="header-stat">
+                            <span class="header-stat-value" id="header-profit-per-paver">--</span>
+                            <span class="header-stat-label">profit/paver</span>
+                        </div>
+                    </div>
+                </div>
+        </div>
+    </header>
+
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast" aria-live="polite" aria-atomic="true">
+        <div class="toast-content">
+            <span id="toast-message"></span>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Project Setup Tab -->
+            <div id="tab-project" class="tab-content active">
+                <!-- Project Name -->
+                <div class="input-group" style="margin-bottom: 12px;">
+                    <label class="input-label">Project Name</label>
+                    <input type="text" id="project-name" class="input-number" placeholder="e.g. Tuesday grey batch" style="text-align: left;">
+                </div>
+
+                <!-- Active Mix Selector -->
+                <div class="input-group" style="margin-bottom: 16px;">
+                    <label class="input-label">Active Mix</label>
+                    <select id="active-mix-select" class="input-select">
+                        <option value="0">Mix 1</option>
+                    </select>
+                </div>
+
+                <!-- Paver Dimensions Card -->
+                <div class="card">
+                    <h2 class="card-title"><span class="icon" id="icon-dimensions"></span> Paver Dimensions</h2>
+                    <div class="grid-2">
+                        <div class="input-group">
+                            <label class="input-label">Length</label>
+                            <div class="input-row">
+                                <input type="number" id="project-length" class="input-number" value="2" min="0.1" step="0.5">
+                                <span class="input-unit">ft</span>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Width</label>
+                            <div class="input-row">
+                                <input type="number" id="project-width" class="input-number" value="1" min="0.1" step="0.5">
+                                <span class="input-unit">ft</span>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Thickness</label>
+                            <div class="input-row">
+                                <input type="number" id="project-thickness" class="input-number" value="2" min="0.5" step="0.5">
+                                <span class="input-unit">in</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Waste/Overage Factor</label>
+                        <div class="input-row">
+                            <input type="number" id="project-waste" class="input-number" value="1.1" min="1" max="2" step="0.05">
+                            <span class="input-unit">×</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Production & Labour Card -->
+                <div class="card">
+                    <h2 class="card-title"><span class="icon" id="icon-worker"></span> Production & Labour</h2>
+                    <div class="input-group">
+                        <label class="input-label">Batch Size</label>
+                        <div class="input-row">
+                            <input type="number" id="project-quantity" class="input-number" value="10" min="1" step="1">
+                            <span class="input-unit">pcs</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Pavers Produced Per Day</label>
+                        <div class="input-row">
+                            <input type="number" id="project-pavers-per-day" class="input-number" value="10" min="1" step="10">
+                            <span class="input-unit">pavers/day</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Number of Workers</label>
+                        <div class="input-row">
+                            <input type="number" id="project-workers" class="input-number" value="1" min="1" step="1">
+                            <span class="input-unit">workers</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Daily Wage Rate (per worker)</label>
+                        <div class="input-row">
+                            <input type="number" id="project-wage-rate" class="input-number" value="0" min="0" step="100">
+                            <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="info-box">
+                        <div class="info-label">Labour Cost per Paver</div>
+                        <div class="info-value" id="labour-cost-per-paver">JMD 0</div>
+                    </div>
+                </div>
+
+                <!-- Transport Costs Card -->
+                <div class="card">
+                    <h2 class="card-title"><span class="icon" id="icon-transport"></span> Transport Costs</h2>
+                    <div class="input-group">
+                        <label class="input-label">Raw Material Transport Cost</label>
+                        <div class="input-row">
+                            <input type="number" id="project-transport" class="input-number" value="0" min="0" step="100">
+                            <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="info-box">
+                        <div class="info-label">Transport Cost per Paver</div>
+                        <div class="info-value" id="transport-cost-per-paver-display">JMD 0</div>
+                    </div>
+                </div>
+
+                <!-- Quick Cost Summary Card -->
+                <div class="card">
+                    <h2 class="card-title"><span class="icon" id="icon-chart"></span> Cost Summary</h2>
+                    <div class="result-row highlight">
+                        <span class="result-label">Total Cost/Paver</span>
+                        <span class="result-value" id="quick-cost-per-paver">JMD 0</span>
+                    </div>
+                    <div class="input-group" style="margin: 8px 0;">
+                        <label class="input-label">Selling Price per Paver</label>
+                        <div class="input-row">
+                            <input type="number" id="project-selling-price" class="input-number" value="0" min="0" step="10">
+                            <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="result-row highlight">
+                        <span class="result-label">Profit/Paver</span>
+                        <span class="result-value" id="quick-profit-per-paver">JMD 0</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">Margin</span>
+                        <span class="result-value" id="quick-profit-margin">0%</span>
+                    </div>
+                    <div class="input-hint" style="text-align: center; margin-top: 8px;">Full breakdown on the Costs tab</div>
+                </div>
+            </div>
+
+            <!-- Mix Design Tab -->
+            <div id="tab-mix" class="tab-content">
+                <!-- Mix sections rendered dynamically by renderMixSections() in app.js / fallback.js -->
+                <div id="mix-sections-container"></div>
+            </div>
+
+            <!-- Cost Summary Tab -->
+            <div id="tab-cost" class="tab-content">
+                <!-- Cost Summary Card -->
+                <div class="card cost-summary-card">
+                    <h2 class="card-title"><span class="icon" id="icon-money"></span> Cost Summary</h2>
+                    <div class="cost-grid">
+                        <div class="cost-box">
+                            <div class="cost-box-label">Material Cost (Total)</div>
+                            <div class="cost-box-value" id="cost-material-total">JMD 0</div>
+                            <div class="cost-box-sub">for <span id="cost-summary-qty">0</span> pavers</div>
+                        </div>
+                        <div class="cost-box">
+                            <div class="cost-box-label">Material Cost/Paver</div>
+                            <div class="cost-box-value" id="cost-material-per-paver">JMD 0</div>
+                            <div class="cost-box-sub"><span id="cost-summary-div-qty">0 ÷ 0</span></div>
+                        </div>
+                    </div>
+                    <div class="cost-total-box">
+                        <div class="cost-total-label">Total Cost Per Paver</div>
+                        <div class="cost-total-value" id="cost-total-per-paver">JMD 0</div>
+                        <div class="cost-total-sub" id="cost-total-sub-detail">
+                            Material: JMD 0 + Labour: JMD 0 + Transport: JMD 0
+                        </div>
+                    </div>
+                    <div class="cost-box">
+                        <div class="cost-box-label">Grand Total (<span id="cost-summary-grand-qty">0</span> pavers)</div>
+                        <div class="cost-box-value" id="cost-grand-total">JMD 0</div>
+                    </div>
+                    <div class="cost-total-box" id="profit-summary-box" style="display:none;">
+                        <div class="cost-total-label">Profit per Paver</div>
+                        <div class="cost-total-value" id="cost-profit-per-paver">JMD 0</div>
+                        <div class="cost-total-sub" id="cost-profit-sub">Margin: 0%</div>
+                        <div class="cost-total-sub" id="cost-profit-total">Total Profit: JMD 0</div>
+                    </div>
+                </div>
+
+                <!-- Detailed Costs -->
+                <div class="card">
+                    <h3 class="card-title"><span class="icon" id="icon-clipboard"></span> Material Cost Breakdown</h3>
+                    <div class="cost-details">
+                        <div class="cost-section-title">Cementitious Materials</div>
+                        <div class="result-row">
+                            <span class="result-label" id="cost-portland-label">Portland (0 bags)</span>
+                            <span class="result-value" id="cost-portland">JMD 0</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label" id="cost-white-label">White Cement (0 bags)</span>
+                            <span class="result-value" id="cost-white">JMD 0</span>
+                        </div>
+
+                        <div class="cost-section-title">Fine Aggregates (Addition B)</div>
+                        <div class="result-row">
+                            <span class="result-label">Sand</span>
+                            <span class="result-value" id="cost-sand">JMD 0</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">Stone Dust</span>
+                            <span class="result-value" id="cost-stone-dust-b">JMD 0</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label" id="cost-gcc400-b-label">GCC 400 (0 yd³)</span>
+                            <span class="result-value" id="cost-gcc400-b">JMD 0</span>
+                        </div>
+                        <div class="result-row highlight">
+                            <span class="result-label">Addition B Total</span>
+                            <span class="result-value" id="cost-add-b-total">JMD 0</span>
+                        </div>
+
+                        <div class="cost-section-title">Coarse Aggregates (Addition C)</div>
+                        <div class="result-row" id="cost-regular-gravel-row" style="display: none;">
+                            <span class="result-label">Regular Gravel</span>
+                            <span class="result-value" id="cost-regular-gravel">JMD 0</span>
+                        </div>
+                        <div class="result-row" id="cost-chip-gravel-row" style="display: none;">
+                            <span class="result-label">Chip Gravel</span>
+                            <span class="result-value" id="cost-chip-gravel">JMD 0</span>
+                        </div>
+                        <div class="result-row" id="cost-white-gravel-row" style="display: none;">
+                            <span class="result-label">White Gravel</span>
+                            <span class="result-value" id="cost-white-gravel">JMD 0</span>
+                        </div>
+                        <div class="result-row" id="cost-stone-dust-c-row" style="display: none;">
+                            <span class="result-label">Stone Dust (C)</span>
+                            <span class="result-value" id="cost-stone-dust-c">JMD 0</span>
+                        </div>
+                        <div class="result-row" id="cost-gcc400-c-row" style="display: none;">
+                            <span class="result-label" id="cost-gcc400-c-label">GCC 400 (C)</span>
+                            <span class="result-value" id="cost-gcc400-c">JMD 0</span>
+                        </div>
+                        <div class="result-row" id="cost-white-lime-row" style="display: none;">
+                            <span class="result-label">White Lime</span>
+                            <span class="result-value" id="cost-white-lime">JMD 0</span>
+                        </div>
+                        <div class="result-row highlight">
+                            <span class="result-label">Addition C Total</span>
+                            <span class="result-value" id="cost-add-c-total">JMD 0</span>
+                        </div>
+
+                        <div class="cost-section-title">Admixtures</div>
+                        <div class="result-row" id="cost-micro-fibre-row" style="display: none;">
+                            <span class="result-label">Micro Fibre</span>
+                            <span class="result-value" id="cost-micro-fibre">JMD 0</span>
+                        </div>
+                        <div class="result-row" id="cost-macro-fibre-row" style="display: none;">
+                            <span class="result-label">Macro Fibre</span>
+                            <span class="result-value" id="cost-macro-fibre">JMD 0</span>
+                        </div>
+                        <div class="result-row" id="cost-water-reducer-row" style="display: none;">
+                            <span class="result-label">Water Reducer</span>
+                            <span class="result-value" id="cost-water-reducer">JMD 0</span>
+                        </div>
+                        <div class="result-row" id="cost-hardener-row" style="display: none;">
+                            <span class="result-label">Hardener</span>
+                            <span class="result-value" id="cost-hardener">JMD 0</span>
+                        </div>
+
+                        <div class="cost-section-title" id="cost-pigments-title" style="display: none;">Pigments</div>
+                        <div class="result-row" id="cost-pigment-1-row" style="display: none;">
+                            <span class="result-label" id="cost-pigment-1-label">Red Iron Oxide</span>
+                            <span class="result-value" id="cost-pigment-1">JMD 0</span>
+                        </div>
+                        <div class="result-row" id="cost-pigment-2-row" style="display: none;">
+                            <span class="result-label" id="cost-pigment-2-label">Yellow Iron Oxide</span>
+                            <span class="result-value" id="cost-pigment-2">JMD 0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Material Summary -->
+                <div class="card">
+                    <h3 class="card-title"><span class="icon" id="icon-clipboard"></span> Material Summary</h3>
+                    <div class="material-summary">
+                        <div class="result-row">
+                            <span class="result-label">Portland Cement</span>
+                            <span class="result-value" id="summary-portland">0 L</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">White Cement</span>
+                            <span class="result-value" id="summary-white">0 L</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">Total Cement</span>
+                            <span class="result-value" id="summary-cement">0 kg</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">Fine Aggregates</span>
+                            <span class="result-value" id="summary-fine">0 L</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">Coarse Aggregates</span>
+                            <span class="result-value" id="summary-coarse">0 L</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">Water</span>
+                            <span class="result-value" id="summary-water">0 L</span>
+                        </div>
+                        <div class="result-row highlight">
+                            <span class="result-label">Total Concrete Weight</span>
+                            <span class="result-value" id="summary-total">0 kg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="card controls-card">
+                    <div class="toggle-group">
+                        <span class="toggle-label">No Costs</span>
+                        <button id="toggle-no-costs" class="toggle-switch">
+                            <span class="toggle-slider"></span>
+                        </button>
+                    </div>
+                    <button id="btn-copy-summary" class="btn-primary">
+                        <span class="icon" id="icon-clipboard"></span> Copy Summary for WhatsApp/Email
+                    </button>
+                    <button id="btn-download-csv" class="btn-secondary">
+                        <span class="icon" id="icon-download"></span> Download as CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="tab-settings" class="tab-content">
+                <div class="settings-nav">
+                    <a href="#settings-prices">Prices</a>
+                    <a href="#settings-recipes">Recipes</a>
+                    <a href="#settings-business">Business</a>
+                    <a href="#settings-data">Data</a>
+                </div>
+                <!-- App Settings Card -->
+                <div class="card">
+                    <h2 class="card-title"><span class="icon" id="icon-settings"></span> App Settings</h2>
+                    <div class="input-group">
+                        <label class="input-label">Theme</label>
+                        <div class="input-row" style="gap:8px;">
+                            <button id="theme-btn-light" class="theme-mode-btn" data-theme="light" aria-pressed="false">Light</button>
+                            <button id="theme-btn-dark" class="theme-mode-btn" data-theme="dark" aria-pressed="false">Dark</button>
+                        </div>
+                    </div>
+                    <div class="toggle-group" style="margin-top:12px;">
+                        <span class="toggle-label">Paver Color Preview</span>
+                        <button id="toggle-color-preview" class="toggle-switch" role="switch" aria-checked="false">
+                            <span class="toggle-slider"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Cementitious Materials Prices -->
+                <div class="card" id="settings-prices">
+                    <h2 class="card-title"><span class="icon" id="icon-brick"></span> Cementitious Materials</h2>
+                    <div class="input-group">
+                        <label class="input-label">Portland Cement (per bag)</label>
+                        <div class="input-row">
+                            <input type="number" id="price-portland" class="input-number" value="1750" min="0" step="10">
+                            <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (bags)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-portland" class="input-number" value="1" min="1" step="1">
+                            <span class="input-unit">bags</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">White Cement (per bag)</label>
+                        <div class="input-row">
+                            <input type="number" id="price-white" class="input-number" value="3810" min="0" step="10">
+                            <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (bags)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-white" class="input-number" value="1" min="1" step="1">
+                            <span class="input-unit">bags</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fine Aggregates Prices -->
+                <div class="card">
+                    <h2 class="card-title"><span class="icon" id="icon-sand"></span> Fine Aggregates (per yd³)</h2>
+                    <div class="input-group">
+                        <label class="input-label">Sand</label>
+                        <div class="input-row">
+                            <input type="number" id="price-sand" class="input-number" value="5000" min="0" step="100">
+                            <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (yd³)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-sand" class="input-number" value="1" min="0.25" step="0.25">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Stone Dust</label>
+                        <div class="input-row">
+                            <input type="number" id="price-stone-dust" class="input-number" value="1800" min="0" step="100">
+                            <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (yd³)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-stone-dust" class="input-number" value="1" min="0.25" step="0.25">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">GCC 400</label>
+                        <div class="input-row">
+                            <input type="number" id="price-gcc400" class="input-number" value="17891" min="0" step="10">
+                            <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (yd³)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-gcc400" class="input-number" value="1" min="0.25" step="0.25">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coarse Aggregates Prices -->
+                <div class="card">
+                    <h2 class="card-title"><span class="icon" id="icon-rock"></span> Coarse Aggregates (per yd³)</h2>
+                    <div class="input-group">
+                        <label class="input-label">Regular Gravel ¾″</label>
+                        <div class="input-row">
+                            <input type="number" id="price-regular-gravel" class="input-number" value="4000" min="0" step="100">
+                            <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (yd³)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-regular-gravel" class="input-number" value="1" min="0.25" step="0.25">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Chip Gravel ⅜″</label>
+                        <div class="input-row">
+                            <input type="number" id="price-chip-gravel" class="input-number" value="4000" min="0" step="100">
+                            <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (yd³)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-chip-gravel" class="input-number" value="1" min="0.25" step="0.25">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">White Gravel</label>
+                        <div class="input-row">
+                            <input type="number" id="price-white-gravel" class="input-number" value="1600" min="0" step="100">
+                            <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (yd³)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-white-gravel" class="input-number" value="1" min="0.25" step="0.25">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">White Lime</label>
+                        <div class="input-row">
+                            <input type="number" id="price-white-lime" class="input-number" value="55" min="0" step="10">
+                            <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (yd³)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-white-lime" class="input-number" value="1" min="0.25" step="0.25">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admixtures Prices -->
+                <div class="card">
+                    <h2 class="card-title"><span class="icon" id="icon-lab"></span> Admixtures (per kg)</h2>
+                    <div class="input-group">
+                        <label class="input-label">Micro Fibre</label>
+                        <div class="input-row">
+                            <input type="number" id="price-micro-fibre" class="input-number" value="1622.6" min="0" step="10">
+                            <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (kg)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-micro-fibre" class="input-number" value="1" min="0.1" step="0.1">
+                            <span class="input-unit">kg</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Macro Fibre</label>
+                        <div class="input-row">
+                            <input type="number" id="price-macro-fibre" class="input-number" value="2200" min="0" step="10">
+                            <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (kg)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-macro-fibre" class="input-number" value="1" min="0.1" step="0.1">
+                            <span class="input-unit">kg</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Water Reducer (Viscocrete)</label>
+                        <div class="input-row">
+                            <input type="number" id="price-water-reducer" class="input-number" value="1378.34" min="0" step="10">
+                            <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (kg)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-water-reducer" class="input-number" value="1" min="0.1" step="0.1">
+                            <span class="input-unit">kg</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Hardener</label>
+                        <div class="input-row">
+                            <input type="number" id="price-hardener" class="input-number" value="0" min="0" step="10">
+                            <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (kg)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-hardener" class="input-number" value="1" min="0.1" step="0.1">
+                            <span class="input-unit">kg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Water -->
+                <div class="card">
+                    <h2 class="card-title">Water</h2>
+                    <div class="toggle-group">
+                        <label class="toggle-label">Unlimited (line supply)</label>
+                        <button id="toggle-water-unlimited" class="toggle-switch" role="switch" aria-checked="true">
+                            <span class="toggle-slider"></span>
+                        </button>
+                    </div>
+                    <div id="water-purchase-fields" style="display:none; margin-top:10px;">
+                        <div class="input-group">
+                            <label class="input-label">Price (per L)</label>
+                            <div class="input-row">
+                                <input type="number" id="price-water" class="input-number" value="0" min="0" step="1">
+                                <span class="input-unit">JMD</span>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Purchase qty</label>
+                            <div class="input-row">
+                                <input type="number" id="pqty-water" class="input-number" value="1000" min="1" step="100">
+                                <span class="input-unit">L</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recipe Presets Card -->
+                <div class="card" id="settings-recipes">
+                    <h2 class="card-title"><span class="icon" id="icon-recipes"></span> Recipe Presets</h2>
+                    <div class="input-group">
+                        <label class="input-label">Save current mix as a preset</label>
+                        <div class="input-row" style="gap:6px;">
+                            <input type="text" id="recipe-name-input" class="input-number" placeholder="Preset name" style="flex:1; min-width:0;">
+                            <button id="btn-save-recipe" class="btn-reset" style="margin:0; white-space:nowrap;">Save</button>
+                        </div>
+                    </div>
+                    <div id="recipe-list" class="recipe-list">
+                        <div class="recipe-empty">No presets saved yet.</div>
+                    </div>
+                </div>
+
+                <!-- Suppliers Card -->
+                <div class="card">
+                    <h2 class="card-title"><span class="icon" id="icon-suppliers"></span> Suppliers</h2>
+                    <div id="supplier-list-container">
+                        <div class="recipe-empty">No suppliers saved yet.</div>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+                        <button id="btn-add-supplier" class="btn-primary" style="flex:1;">Add Supplier</button>
+                        <button id="btn-export-suppliers" class="btn-secondary" style="flex:1;">Export JSON</button>
+                        <label id="btn-import-suppliers-label" class="btn-secondary" style="flex:1;text-align:center;cursor:pointer;display:inline-block;">Import JSON<input type="file" id="btn-import-suppliers" accept=".json" style="display:none;"></label>
+                    </div>
+                </div>
+
+                <!-- Business Identity Card -->
+                <div class="card" id="settings-business">
+                    <h2 class="card-title"><span class="icon" id="icon-business"></span> Business Identity</h2>
+                    <p class="help-text" style="margin-bottom:12px;">Printed on Purchase Orders as the "From" party.</p>
+                    <div class="input-group">
+                        <label class="input-label">Business Name</label>
+                        <input type="text" id="biz-name" class="input-number" placeholder="e.g. Rockstone Pavers Ltd" style="text-align:left;">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Address</label>
+                        <input type="text" id="biz-address" class="input-number" placeholder="e.g. 12 Main St, Kingston" style="text-align:left;">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Phone</label>
+                        <input type="tel" id="biz-phone" class="input-number" placeholder="e.g. 876-555-0100" style="text-align:left;">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Email</label>
+                        <input type="email" id="biz-email" class="input-number" placeholder="e.g. orders@rockstone.com" style="text-align:left;">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Tax ID / TRN</label>
+                        <input type="text" id="biz-tax-id" class="input-number" placeholder="Optional" style="text-align:left;">
+                    </div>
+                </div>
+
+                <!-- Tax Card -->
+                <div class="card">
+                    <h2 class="card-title"><span class="icon" id="icon-tax"></span> Tax</h2>
+                    <div class="input-group">
+                        <label class="input-label">GCT Rate</label>
+                        <div class="input-row">
+                            <input type="number" id="tax-rate" class="input-number" value="15" min="0" max="100" step="0.5">
+                            <span class="input-unit">%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Google Sheets Sync Card -->
+                <div class="card">
+                    <h2 class="card-title"><span class="icon" id="icon-sync"></span> Google Sheets Sync</h2>
+                    <p class="help-text" style="margin-bottom:12px;">Prices and suppliers sync automatically from the sheet on load. Enable write mode to push changes back (5 min window).</p>
+                    <div class="input-group">
+                        <label class="input-label">Apps Script URL</label>
+                        <input type="url" id="sync-url" class="input-number" placeholder="https://script.google.com/macros/s/.../exec" style="text-align:left;" value="https://script.google.com/macros/s/AKfycbxw8NfagN0nCGQ_iyYFM_ZMXl9faAwcCn_Nkovcg-t6zwVJ-FGvmL11CmTPzYA1Ra6G/exec">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Sync Key (optional)</label>
+                        <input type="text" id="sync-key" class="input-number" placeholder="Shared secret" style="text-align:left;">
+                    </div>
+                    <div class="toggle-group" style="margin-top:8px;">
+                        <span class="toggle-label">Enable Write Mode</span>
+                        <button id="toggle-sync" class="toggle-switch" role="switch" aria-checked="false">
+                            <span class="toggle-slider"></span>
+                        </button>
+                    </div>
+                    <div id="sync-status" style="font-size:0.8rem;color:var(--text-secondary);margin-top:8px;">Set Apps Script URL to sync</div>
+                </div>
+
+                <!-- Data Management Card (C1) -->
+                <div class="card" id="settings-data">
+                    <h2 class="card-title">Data Management</h2>
+                    <p class="help-text" style="margin-bottom:12px;">Export all settings, prices, and inventory to a JSON file for backup or transfer to another device.</p>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button id="btn-export-data" class="btn-secondary" style="flex:1;">Export Backup</button>
+                        <label id="btn-import-data-label" class="btn-secondary" style="flex:1;text-align:center;cursor:pointer;display:inline-block;">Import Backup<input type="file" id="btn-import-data" accept=".json" style="display:none;"></label>
+                    </div>
+                </div>
+
+                <!-- Reset Button -->
+                <button id="btn-reset-prices" class="btn-reset">
+                    <span class="icon" id="icon-reset"></span> Reset to Default Prices
+                </button>
+                <button id="btn-reset-all" class="btn-reset" style="margin-top:8px;">
+                    Reset All Settings
+                </button>
+            </div>
+        </div>
+
+            <!-- Inventory Tab -->
+            <div id="tab-inventory" class="tab-content">
+
+                <!-- Daily Production card -->
+                <div class="card">
+                    <h2 class="card-title"><span class="icon" id="icon-inventory-production"></span> Daily Production</h2>
+                    <div class="input-group">
+                        <label class="input-label">Pavers Produced Today</label>
+                        <div class="input-row">
+                            <input type="number" id="inventory-pavers-today" class="input-number" value="0" min="0" step="1">
+                            <span class="input-unit">pavers</span>
+                        </div>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">Daily Production Rate (from Project)</span>
+                        <span class="result-value" id="inventory-daily-rate">--</span>
+                    </div>
+                </div>
+
+                <!-- Controls card -->
+                <div class="card">
+                    <div class="toggle-group">
+                        <label class="toggle-label">Link to Calculator</label>
+                        <button id="toggle-calculator-link" class="toggle-switch" role="switch" aria-checked="true">
+                            <span class="toggle-slider"></span>
+                        </button>
+                    </div>
+                    <p class="help-text" id="inventory-link-hint">Usage and days remaining are calculated from the current mix design.</p>
+                    <div class="toggle-group" style="margin-top:10px;">
+                        <label class="toggle-label">Always Show Purchase</label>
+                        <button id="toggle-always-purchase" class="toggle-switch" role="switch" aria-checked="false">
+                            <span class="toggle-slider"></span>
+                        </button>
+                    </div>
+                    <button id="btn-clear-today" class="btn-secondary" style="margin-top:12px;">Clear Today</button>
+                </div>
+
+                <!-- Summary card (JS-populated) -->
+                <div id="inv-summary-card" class="card" style="display:none;"></div>
+
+                <!-- Stock and Usage section (dynamic, JS-rendered) -->
+                <div id="inventory-materials"></div>
+
+                <!-- PO History section -->
+                <div id="po-history-section" class="card" style="margin-bottom:16px;">
+                    <h2 class="card-title"><span class="icon" id="icon-po-history"></span> PO History</h2>
+                    <div id="po-history-list">
+                        <div class="recipe-empty">No purchase orders saved yet.</div>
+                    </div>
+                </div>
+
+                <!-- Purchase Order section -->
+                <div id="purchase-order-section" class="card" style="display:none;">
+                    <h2 class="card-title"><span class="icon" id="icon-inventory-order"></span> Purchase Order</h2>
+                    <div class="input-group">
+                        <label class="input-label">Target Additional Pavers</label>
+                        <div class="input-row">
+                            <input type="number" id="target-additional-pavers" class="input-number" value="0" min="0" step="100">
+                            <span class="input-unit">pavers</span>
+                        </div>
+                    </div>
+                    <button id="btn-generate-order" class="btn-primary">Generate Purchase Order</button>
+                    <div id="purchase-order-output"></div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Tab Navigation -->
+    <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="project" aria-label="Project">
+            <span class="tab-icon">
+                <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </span>
+            <span class="tab-label">Project</span>
+        </button>
+        <button class="tab-btn" data-tab="mix" aria-label="Mix Design">
+            <span class="tab-icon">
+                <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2l-2 4h4l-2-4z" fill="currentColor"/>
+                    <path d="M8 6h8l2 12H6L8 6z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </span>
+            <span class="tab-label">Mix</span>
+        </button>
+        <button class="tab-btn" data-tab="cost" aria-label="Costs">
+            <span class="tab-icon">
+                <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="6" width="18" height="12" rx="2" stroke="currentColor" stroke-width="2"/>
+                    <path d="M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </span>
+            <span class="tab-label">Costs</span>
+        </button>
+        <button class="tab-btn" data-tab="inventory" aria-label="Inventory">
+            <span class="tab-icon">
+                <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="2" y="7" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+                    <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" stroke="currentColor" stroke-width="2"/>
+                    <path d="M8 12h8M8 16h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </span>
+            <span class="tab-label">Stock</span>
+        </button>
+        <button class="tab-btn" data-tab="settings" aria-label="Settings">
+            <span class="tab-icon">
+                <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </span>
+            <span class="tab-label">Settings</span>
+        </button>
+    </nav>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading calculator...</div>
+    </div>
+
+    <!-- Import WASM Module -->
+    <script type="module" src="js/icons.js"></script>
+    <script type="module" src="js/app.js"></script>
+    <!-- Supplier management (shared across all paths) -->
+    <script src="js/suppliers.js"></script>
+    <!-- Purchase Order engine (shared across all paths) -->
+    <script src="js/po.js"></script>
+    <!-- Google Sheets sync (shared across all paths) -->
+    <script src="js/sync.js"></script>
+    <!-- Fallback JavaScript for standalone operation -->
+    <script src="js/fallback.js"></script>
+    <!-- Watchdog: activate fallback if WASM modules fail to load (e.g. file:// protocol) -->
+    <script>
+    setTimeout(function() {
+        var overlay = document.getElementById('loading-overlay');
+        if (overlay && overlay.style.display !== 'none') {
+            window.__fallbackActive = true;
+            overlay.style.display = 'none';
+            // Theme fallback (app.js module doesn't load over file://)
+            (function() {
+                var html = document.documentElement;
+                var btnLight = document.getElementById('theme-btn-light');
+                var btnDark = document.getElementById('theme-btn-dark');
+                if (!btnLight || !btnDark) return;
+                var saved = localStorage.getItem('theme');
+                var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var theme = saved || (prefersDark ? 'dark' : 'light');
+                html.setAttribute('data-theme', theme);
+                btnLight.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
+                btnDark.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
+                [btnLight, btnDark].forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        var t = btn.getAttribute('data-theme');
+                        html.setAttribute('data-theme', t);
+                        localStorage.setItem('theme', t);
+                        btnLight.setAttribute('aria-pressed', t === 'light' ? 'true' : 'false');
+                        btnDark.setAttribute('aria-pressed', t === 'dark' ? 'true' : 'false');
+                    });
+                });
+            })();
+            document.querySelectorAll('.tab-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+                    document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+                    btn.classList.add('active');
+                    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+                });
+            });
+            if (typeof ConcreteCalculator !== 'undefined') {
+                var calc = new ConcreteCalculator();
+                var WD_STATE_KEY = 'sprat-calculator-state';
+
+                // Load saved state (v1 or v2) into calc
+                (function() {
+                    try {
+                        var raw = localStorage.getItem(WD_STATE_KEY);
+                        if (!raw) return;
+                        var saved = JSON.parse(raw);
+                        if (!saved) return;
+                        var s = calc.state;
+                        if (saved._version === 1) {
+                            // Migrate flat v1 format → mixes array
+                            var defMix = { name: 'Mix 1',
+                                mix_parts: saved.mix_parts ? { cement: saved.mix_parts.cement||1, sand: saved.mix_parts.sand||2, coarse_agg: saved.mix_parts.coarse_agg||3 } : s.mixes[0].mix_parts,
+                                addition_a: saved.addition_a || s.mixes[0].addition_a,
+                                addition_b: saved.addition_b || s.mixes[0].addition_b,
+                                addition_c: saved.addition_c ? { regular_gravel: saved.addition_c.regular_gravel||0, chip_gravel: saved.addition_c.chip_gravel||0, white_gravel: saved.addition_c.white_gravel||0, stone_dust: saved.addition_c.stone_dust||0, gcc400: saved.addition_c.gcc400||0, white_lime: saved.addition_c.white_lime||0, custom: saved.addition_c.custom||0, custom_density: saved.addition_c.custom_density||1600 } : s.mixes[0].addition_c,
+                                water: saved.water ? { wc_ratio: saved.water.wc_ratio||0.45, wet_cast_factor: saved.water.wet_cast_factor||1.57 } : s.mixes[0].water,
+                                admixtures: saved.admixtures ? { micro_fibre: saved.admixtures.micro_fibre||0, macro_fibre: saved.admixtures.macro_fibre||0, water_reducer: saved.admixtures.water_reducer||0, hardener: saved.admixtures.hardener||0 } : s.mixes[0].admixtures,
+                                pigments: saved.pigments ? { total_percent: saved.pigments.total_percent||0, pigment1_name: saved.pigments.pigment1_name||'Red Iron Oxide', pigment1_parts: saved.pigments.pigment1_parts||1, pigment2_name: saved.pigments.pigment2_name||'None', pigment2_parts: saved.pigments.pigment2_parts||0 } : s.mixes[0].pigments
+                            };
+                            s.mixes = [defMix]; s.activeMix = 0; s.deletedMixes = [];
+                        } else if (saved._version === 2) {
+                            if (Array.isArray(saved.mixes) && saved.mixes.length > 0) s.mixes = saved.mixes;
+                            if (typeof saved.active_mix === 'number') s.activeMix = Math.min(saved.active_mix, s.mixes.length - 1);
+                            if (Array.isArray(saved.deleted_mixes)) s.deletedMixes = saved.deleted_mixes;
+                        }
+                        if (saved.project) {
+                            if (saved.project.project_name !== undefined)        s.project.projectName  = saved.project.project_name;
+                            if (saved.project.length !== undefined)              s.project.length       = saved.project.length;
+                            if (saved.project.width !== undefined)               s.project.width        = saved.project.width;
+                            if (saved.project.thickness !== undefined)           s.project.thickness    = saved.project.thickness;
+                            if (saved.project.quantity !== undefined)            s.project.quantity     = saved.project.quantity;
+                            if (saved.project.waste_factor !== undefined)        s.project.waste        = saved.project.waste_factor;
+                            if (saved.project.pavers_per_day !== undefined)      s.project.paversPerDay = saved.project.pavers_per_day;
+                            if (saved.project.workers !== undefined)             s.project.workers      = saved.project.workers;
+                            if (saved.project.wage_rate !== undefined)           s.project.wageRate     = saved.project.wage_rate;
+                            if (saved.project.raw_material_transport !== undefined) s.project.transport = saved.project.raw_material_transport;
+                            if (saved.project.selling_price !== undefined)       s.project.sellingPrice = saved.project.selling_price;
+                        }
+                        if (saved.prices) {
+                            if (saved.prices.portland_bag !== undefined)    s.prices.portland      = saved.prices.portland_bag;
+                            if (saved.prices.white_bag !== undefined)       s.prices.white         = saved.prices.white_bag;
+                            if (saved.prices.sand !== undefined)            s.prices.sand          = saved.prices.sand;
+                            if (saved.prices.stone_dust !== undefined)      s.prices.stoneDust     = saved.prices.stone_dust;
+                            if (saved.prices.gcc400 !== undefined)          s.prices.gcc400        = saved.prices.gcc400;
+                            if (saved.prices.regular_gravel !== undefined)  s.prices.regularGravel = saved.prices.regular_gravel;
+                            if (saved.prices.chip_gravel !== undefined)     s.prices.chipGravel    = saved.prices.chip_gravel;
+                            if (saved.prices.white_gravel !== undefined)    s.prices.whiteGravel   = saved.prices.white_gravel;
+                            if (saved.prices.white_lime !== undefined)      s.prices.whiteLime     = saved.prices.white_lime;
+                            if (saved.prices.micro_fibre !== undefined)     s.prices.microFibre    = saved.prices.micro_fibre;
+                            if (saved.prices.macro_fibre !== undefined)     s.prices.macroFibre    = saved.prices.macro_fibre;
+                            if (saved.prices.water_reducer !== undefined)   s.prices.waterReducer  = saved.prices.water_reducer;
+                            if (saved.prices.hardener !== undefined)        s.prices.hardener      = saved.prices.hardener;
+                            if (saved.prices.portland_pqty !== undefined)     s.prices.portlandPqty      = saved.prices.portland_pqty;
+                            if (saved.prices.white_pqty !== undefined)        s.prices.whitePqty         = saved.prices.white_pqty;
+                            if (saved.prices.sand_pqty !== undefined)         s.prices.sandPqty          = saved.prices.sand_pqty;
+                            if (saved.prices.stone_dust_pqty !== undefined)   s.prices.stoneDustPqty     = saved.prices.stone_dust_pqty;
+                            if (saved.prices.gcc400_pqty !== undefined)       s.prices.gcc400Pqty        = saved.prices.gcc400_pqty;
+                            if (saved.prices.regular_gravel_pqty !== undefined) s.prices.regularGravelPqty = saved.prices.regular_gravel_pqty;
+                            if (saved.prices.chip_gravel_pqty !== undefined)  s.prices.chipGravelPqty    = saved.prices.chip_gravel_pqty;
+                            if (saved.prices.white_gravel_pqty !== undefined) s.prices.whiteGravelPqty   = saved.prices.white_gravel_pqty;
+                            if (saved.prices.white_lime_pqty !== undefined)   s.prices.whiteLimePqty     = saved.prices.white_lime_pqty;
+                            if (saved.prices.micro_fibre_pqty !== undefined)  s.prices.microFibrePqty    = saved.prices.micro_fibre_pqty;
+                            if (saved.prices.macro_fibre_pqty !== undefined)  s.prices.macroFibrePqty    = saved.prices.macro_fibre_pqty;
+                            if (saved.prices.water_reducer_pqty !== undefined) s.prices.waterReducerPqty = saved.prices.water_reducer_pqty;
+                            if (saved.prices.hardener_pqty !== undefined)     s.prices.hardenerPqty      = saved.prices.hardener_pqty;
+                            if (saved.prices.water_pqty !== undefined)        s.prices.waterPqty         = saved.prices.water_pqty;
+                            if (saved.prices.water_unlimited !== undefined)   s.prices.waterUnlimited    = saved.prices.water_unlimited;
+                        }
+                        if (saved.settings) {
+                            if (saved.settings.business_name    !== undefined) s.settings.businessName    = saved.settings.business_name;
+                            if (saved.settings.business_address !== undefined) s.settings.businessAddress = saved.settings.business_address;
+                            if (saved.settings.business_phone   !== undefined) s.settings.businessPhone   = saved.settings.business_phone;
+                            if (saved.settings.business_email   !== undefined) s.settings.businessEmail   = saved.settings.business_email;
+                            if (saved.settings.business_tax_id  !== undefined) s.settings.businessTaxId   = saved.settings.business_tax_id;
+                            if (saved.settings.tax_rate         !== undefined) s.settings.taxRate         = saved.settings.tax_rate;
+                        }
+                        if (typeof saved.no_costs === 'boolean') s.noCosts = saved.no_costs;
+                        var ncToggle = document.getElementById('toggle-no-costs');
+                        if (ncToggle && s.noCosts) {
+                            ncToggle.classList.add('active');
+                            var ncSlider = ncToggle.querySelector('.toggle-slider');
+                            if (ncSlider) ncSlider.style.transform = 'translateX(20px)';
+                        }
+                        if (typeof saved.color_preview === 'boolean') s.colorPreview = saved.color_preview;
+                        var cpToggleWd = document.getElementById('toggle-color-preview');
+                        if (cpToggleWd) {
+                            cpToggleWd.classList.toggle('active', s.colorPreview);
+                            cpToggleWd.setAttribute('aria-checked', String(s.colorPreview));
+                            var cpSliderWd = cpToggleWd.querySelector('.toggle-slider');
+                            if (cpSliderWd) cpSliderWd.style.transform = s.colorPreview ? 'translateX(20px)' : 'translateX(0)';
+                        }
+                    } catch(_) {}
+                    // Init sheet sync (wires Settings UI, respects existing config)
+                    if (window.SheetSync) window.SheetSync.init();
+                })();
+
+                function wdSaveState() {
+                    try {
+                        var s = calc.state;
+                        localStorage.setItem(WD_STATE_KEY, JSON.stringify({
+                            _version: 2,
+                            project: { project_name: s.project.projectName||'', length: s.project.length, width: s.project.width, thickness: s.project.thickness, quantity: s.project.quantity, waste_factor: s.project.waste, pavers_per_day: s.project.paversPerDay, workers: s.project.workers||1, wage_rate: s.project.wageRate, raw_material_transport: s.project.transport, selling_price: s.project.sellingPrice },
+                            mixes: s.mixes,
+                            active_mix: s.activeMix,
+                            deleted_mixes: s.deletedMixes,
+                            prices: { portland_bag: s.prices.portland, white_bag: s.prices.white, sand: s.prices.sand, stone_dust: s.prices.stoneDust, gcc400: s.prices.gcc400, regular_gravel: s.prices.regularGravel, chip_gravel: s.prices.chipGravel, white_gravel: s.prices.whiteGravel, white_lime: s.prices.whiteLime, micro_fibre: s.prices.microFibre, macro_fibre: s.prices.macroFibre, water_reducer: s.prices.waterReducer, hardener: s.prices.hardener, portland_pqty: s.prices.portlandPqty, white_pqty: s.prices.whitePqty, sand_pqty: s.prices.sandPqty, stone_dust_pqty: s.prices.stoneDustPqty, gcc400_pqty: s.prices.gcc400Pqty, regular_gravel_pqty: s.prices.regularGravelPqty, chip_gravel_pqty: s.prices.chipGravelPqty, white_gravel_pqty: s.prices.whiteGravelPqty, white_lime_pqty: s.prices.whiteLimePqty, micro_fibre_pqty: s.prices.microFibrePqty, macro_fibre_pqty: s.prices.macroFibrePqty, water_reducer_pqty: s.prices.waterReducerPqty, hardener_pqty: s.prices.hardenerPqty, water_pqty: s.prices.waterPqty, water_unlimited: s.prices.waterUnlimited },
+                            settings: { business_name: s.settings.businessName||'', business_address: s.settings.businessAddress||'', business_phone: s.settings.businessPhone||'', business_email: s.settings.businessEmail||'', business_tax_id: s.settings.businessTaxId||'', tax_rate: s.settings.taxRate||15 },
+                            no_costs: s.noCosts || false,
+                            color_preview: s.colorPreview || false
+                        }));
+                    } catch(_) {}
+                }
+
+                // Push project/price DOM inputs from state
+                (function() {
+                    var s = calc.state;
+                    var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v; };
+                    set('project-name', s.project.projectName || '');
+                    set('project-length', s.project.length);
+                    set('project-width', s.project.width);
+                    set('project-thickness', s.project.thickness);
+                    set('project-quantity', s.project.quantity);
+                    set('project-waste', s.project.waste);
+                    set('project-pavers-per-day', s.project.paversPerDay);
+                    set('project-workers', s.project.workers || 1);
+                    set('project-wage-rate', s.project.wageRate);
+                    set('project-transport', s.project.transport);
+                    set('project-selling-price', s.project.sellingPrice);
+                    set('price-portland', s.prices.portland);
+                    set('price-white', s.prices.white);
+                    set('price-sand', s.prices.sand);
+                    set('price-stone-dust', s.prices.stoneDust);
+                    set('price-gcc400', s.prices.gcc400);
+                    set('price-regular-gravel', s.prices.regularGravel);
+                    set('price-chip-gravel', s.prices.chipGravel);
+                    set('price-white-gravel', s.prices.whiteGravel);
+                    set('price-white-lime', s.prices.whiteLime);
+                    set('price-micro-fibre', s.prices.microFibre);
+                    set('price-macro-fibre', s.prices.macroFibre);
+                    set('price-water-reducer', s.prices.waterReducer);
+                    set('price-hardener', s.prices.hardener);
+                    set('pqty-portland', s.prices.portlandPqty);
+                    set('pqty-white', s.prices.whitePqty);
+                    set('pqty-sand', s.prices.sandPqty);
+                    set('pqty-stone-dust', s.prices.stoneDustPqty);
+                    set('pqty-gcc400', s.prices.gcc400Pqty);
+                    set('pqty-regular-gravel', s.prices.regularGravelPqty);
+                    set('pqty-chip-gravel', s.prices.chipGravelPqty);
+                    set('pqty-white-gravel', s.prices.whiteGravelPqty);
+                    set('pqty-white-lime', s.prices.whiteLimePqty);
+                    set('pqty-micro-fibre', s.prices.microFibrePqty);
+                    set('pqty-macro-fibre', s.prices.macroFibrePqty);
+                    set('pqty-water-reducer', s.prices.waterReducerPqty);
+                    set('pqty-hardener', s.prices.hardenerPqty);
+                    set('pqty-water', s.prices.waterPqty);
+                    // Business identity + tax
+                    set('biz-name',    s.settings.businessName || '');
+                    set('biz-address', s.settings.businessAddress || '');
+                    set('biz-phone',   s.settings.businessPhone || '');
+                    set('biz-email',   s.settings.businessEmail || '');
+                    set('biz-tax-id',  s.settings.businessTaxId || '');
+                    set('tax-rate',    s.settings.taxRate || 15);
+                })();
+
+                // Render dynamic mix sections (they contain all mix inputs)
+                var wdOnUpdate = function() { calc.updateUI(); wdSaveState(); fbUpdateInventory(calc); wdApplyColorPreview(calc); };
+                function wdShowToast(msg) {
+                    var t = document.getElementById('toast');
+                    var tm = document.getElementById('toast-message');
+                    if (t && tm) { tm.textContent = msg; t.classList.add('show'); setTimeout(function() { t.classList.remove('show'); }, 2500); }
+                    else if (t) { t.textContent = msg; t.classList.add('show'); setTimeout(function() { t.classList.remove('show'); }, 2500); }
+                }
+                calc.renderMixSections(wdOnUpdate);
+                calc.renderMixSelector();
+                calc.updateUI();
+
+                // Wire project name
+                (function() {
+                    var pnInput = document.getElementById('project-name');
+                    if (pnInput) pnInput.addEventListener('input', function() {
+                        calc.state.project.projectName = pnInput.value;
+                        wdSaveState();
+                        var hn = document.getElementById('header-project-name');
+                        if (hn) hn.textContent = pnInput.value || 'Concrete Mix Calculator';
+                    });
+                })();
+
+                // Wire project number inputs
+                var projectFieldMap = {
+                    'project-length': 'length', 'project-width': 'width', 'project-thickness': 'thickness',
+                    'project-quantity': 'quantity', 'project-waste': 'waste', 'project-pavers-per-day': 'paversPerDay',
+                    'project-workers': 'workers', 'project-wage-rate': 'wageRate', 'project-transport': 'transport',
+                    'project-selling-price': 'sellingPrice'
+                };
+                Object.keys(projectFieldMap).forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (!el) return;
+                    el.addEventListener('input', function() {
+                        calc.state.project[projectFieldMap[id]] = parseFloat(el.value) || 0;
+                        wdOnUpdate();
+                    });
+                });
+
+                // F1: Clamp waste factor (override generic handler)
+                (function() {
+                    var wasteEl = document.getElementById('project-waste');
+                    if (!wasteEl) return;
+                    wasteEl.addEventListener('input', function() {
+                        var v = Math.min(2, Math.max(1, parseFloat(wasteEl.value) || 1));
+                        wasteEl.value = v;
+                        calc.state.project.waste = v;
+                        wdOnUpdate();
+                    }, true);
+                })();
+
+                // Wire active mix selector (Project tab)
+                var activeMixSel = document.getElementById('active-mix-select');
+                if (activeMixSel) activeMixSel.addEventListener('change', function() {
+                    calc.setActiveMix(parseInt(activeMixSel.value, 10));
+                    calc.renderMixSections(wdOnUpdate);
+                    wdOnUpdate();
+                });
+
+                // Wire price inputs
+                var priceMap = {
+                    'price-portland': 'portland', 'price-white': 'white', 'price-sand': 'sand',
+                    'price-stone-dust': 'stoneDust', 'price-gcc400': 'gcc400',
+                    'price-regular-gravel': 'regularGravel', 'price-chip-gravel': 'chipGravel',
+                    'price-white-gravel': 'whiteGravel', 'price-white-lime': 'whiteLime',
+                    'price-micro-fibre': 'microFibre', 'price-macro-fibre': 'macroFibre',
+                    'price-water-reducer': 'waterReducer', 'price-hardener': 'hardener'
+                };
+                Object.keys(priceMap).forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (!el) return;
+                    el.addEventListener('input', function() {
+                        calc.state.prices[priceMap[id]] = parseFloat(el.value) || 0;
+                        wdOnUpdate();
+                    });
+                });
+
+                // Wire purchase qty inputs
+                var pqtyMap = {
+                    'pqty-portland': 'portlandPqty', 'pqty-white': 'whitePqty',
+                    'pqty-sand': 'sandPqty', 'pqty-stone-dust': 'stoneDustPqty', 'pqty-gcc400': 'gcc400Pqty',
+                    'pqty-regular-gravel': 'regularGravelPqty', 'pqty-chip-gravel': 'chipGravelPqty',
+                    'pqty-white-gravel': 'whiteGravelPqty', 'pqty-white-lime': 'whiteLimePqty',
+                    'pqty-micro-fibre': 'microFibrePqty', 'pqty-macro-fibre': 'macroFibrePqty',
+                    'pqty-water-reducer': 'waterReducerPqty', 'pqty-hardener': 'hardenerPqty',
+                    'pqty-water': 'waterPqty'
+                };
+                Object.keys(pqtyMap).forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (!el) return;
+                    el.addEventListener('input', function() {
+                        calc.state.prices[pqtyMap[id]] = parseFloat(el.value) || 1;
+                        wdSaveState();
+                    });
+                });
+
+                // Wire water unlimited toggle
+                (function() {
+                    var toggleWU = document.getElementById('toggle-water-unlimited');
+                    var waterFields = document.getElementById('water-purchase-fields');
+                    if (!toggleWU || !waterFields) return;
+                    var waterUnlimited = calc.state.prices.waterUnlimited !== false;
+                    var applyWU = function(val) {
+                        waterUnlimited = val;
+                        toggleWU.setAttribute('aria-checked', String(val));
+                        var sl = toggleWU.querySelector('.toggle-slider');
+                        if (sl) sl.style.transform = val ? 'translateX(20px)' : 'translateX(0)';
+                        toggleWU.classList.toggle('active', val);
+                        waterFields.style.display = val ? 'none' : 'block';
+                        calc.state.prices.waterUnlimited = val;
+                        wdSaveState();
+                        if (fbInv) fbUpdateInventory(calc);
+                    };
+                    applyWU(waterUnlimited);
+                    toggleWU.addEventListener('click', function() { applyWU(!waterUnlimited); });
+                })();
+
+                // Business identity + tax inputs
+                (function() {
+                    var bizMap = { 'biz-name': 'businessName', 'biz-address': 'businessAddress', 'biz-phone': 'businessPhone', 'biz-email': 'businessEmail', 'biz-tax-id': 'businessTaxId' };
+                    Object.keys(bizMap).forEach(function(id) {
+                        var el = document.getElementById(id);
+                        if (el) el.addEventListener('input', function() {
+                            calc.state.settings[bizMap[id]] = el.value;
+                            wdSaveState();
+                        });
+                    });
+                    var taxEl = document.getElementById('tax-rate');
+                    if (taxEl) taxEl.addEventListener('input', function() {
+                        calc.state.settings.taxRate = parseFloat(taxEl.value) || 0;
+                        wdSaveState();
+                    });
+                })();
+
+                // Reset prices button (B2: two-step confirmation)
+                (function() {
+                    var btnResetPrices = document.getElementById('btn-reset-prices');
+                    if (!btnResetPrices) return;
+                    var resetTimer = null;
+                    var resetOutside = null;
+                    var cancelReset = function() {
+                        clearTimeout(resetTimer);
+                        btnResetPrices.innerHTML = '<span class="icon" id="icon-reset"></span> Reset to Default Prices';
+                        btnResetPrices.removeAttribute('data-confirm');
+                        if (resetOutside) { document.removeEventListener('click', resetOutside, true); resetOutside = null; }
+                    };
+                    btnResetPrices.addEventListener('click', function() {
+                        if (btnResetPrices.getAttribute('data-confirm') === '1') {
+                            cancelReset();
+                            calc.state.prices = { portland: 1750, white: 3810, sand: 5000, stoneDust: 1800, gcc400: 17891, regularGravel: 4000, chipGravel: 4000, whiteGravel: 1600, whiteLime: 55, microFibre: 1622.6, macroFibre: 2200, waterReducer: 1378.34, hardener: 0, portlandPqty: 1, whitePqty: 1, sandPqty: 1, stoneDustPqty: 1, gcc400Pqty: 1, regularGravelPqty: 1, chipGravelPqty: 1, whiteGravelPqty: 1, whiteLimePqty: 1, microFibrePqty: 1, macroFibrePqty: 1, waterReducerPqty: 1, hardenerPqty: 1, waterPqty: 1000, waterUnlimited: true };
+                            (function() {
+                                var p = calc.state.prices;
+                                var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v; };
+                                set('price-portland', p.portland); set('price-white', p.white); set('price-sand', p.sand);
+                                set('price-stone-dust', p.stoneDust); set('price-gcc400', p.gcc400);
+                                set('price-regular-gravel', p.regularGravel); set('price-chip-gravel', p.chipGravel);
+                                set('price-white-gravel', p.whiteGravel); set('price-white-lime', p.whiteLime);
+                                set('price-micro-fibre', p.microFibre); set('price-macro-fibre', p.macroFibre);
+                                set('price-water-reducer', p.waterReducer); set('price-hardener', p.hardener);
+                                set('pqty-portland', 1); set('pqty-white', 1); set('pqty-sand', 1);
+                                set('pqty-stone-dust', 1); set('pqty-gcc400', 1);
+                                set('pqty-regular-gravel', 1); set('pqty-chip-gravel', 1);
+                                set('pqty-white-gravel', 1); set('pqty-white-lime', 1);
+                                set('pqty-micro-fibre', 1); set('pqty-macro-fibre', 1);
+                                set('pqty-water-reducer', 1); set('pqty-hardener', 1); set('pqty-water', 1000);
+                                var toggleWU = document.getElementById('toggle-water-unlimited');
+                                var waterFields = document.getElementById('water-purchase-fields');
+                                if (toggleWU) {
+                                    toggleWU.setAttribute('aria-checked', 'true');
+                                    toggleWU.classList.add('active');
+                                    var sl = toggleWU.querySelector('.toggle-slider');
+                                    if (sl) sl.style.transform = 'translateX(20px)';
+                                }
+                                if (waterFields) waterFields.style.display = 'none';
+                            })();
+                            wdOnUpdate();
+                        } else {
+                            btnResetPrices.setAttribute('data-confirm', '1');
+                            btnResetPrices.textContent = 'Confirm reset?';
+                            resetTimer = setTimeout(cancelReset, 3000);
+                            resetOutside = function(ev) { if (!btnResetPrices.contains(ev.target)) cancelReset(); };
+                            document.addEventListener('click', resetOutside, true);
+                        }
+                    });
+                })();
+
+                // Reset All button
+                (function() {
+                    var btnRA = document.getElementById('btn-reset-all');
+                    if (btnRA) btnRA.addEventListener('click', function() {
+                        localStorage.removeItem(WD_STATE_KEY);
+                        location.reload();
+                    });
+                })();
+
+                // C1: Export backup (fallback path)
+                (function() {
+                    var btnEx = document.getElementById('btn-export-data');
+                    if (!btnEx) return;
+                    btnEx.addEventListener('click', function() {
+                        var backup = {
+                            _version: 2,
+                            state: JSON.parse(localStorage.getItem(WD_STATE_KEY) || 'null'),
+                            inventory: JSON.parse(localStorage.getItem(FB_INV_KEY) || 'null'),
+                        };
+                        var blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+                        var url = URL.createObjectURL(blob);
+                        var a = document.createElement('a');
+                        a.href = url;
+                        var d = new Date();
+                        a.download = 'sprat-backup-' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + '.json';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    });
+                })();
+
+                // C1: Import backup (fallback path)
+                (function() {
+                    var btnIm = document.getElementById('btn-import-data');
+                    if (!btnIm) return;
+                    btnIm.addEventListener('change', function(e) {
+                        var file = e.target.files[0];
+                        if (!file) return;
+                        var reader = new FileReader();
+                        reader.onload = function(ev) {
+                            try {
+                                var data = JSON.parse(ev.target.result);
+                                if (!data._version || !data.state || !data.state.prices || !data.state.project) {
+                                    wdShowToast('Invalid backup file');
+                                    return;
+                                }
+                                if (data.state) localStorage.setItem(WD_STATE_KEY, JSON.stringify(data.state));
+                                if (data.inventory) localStorage.setItem(FB_INV_KEY, JSON.stringify(data.inventory));
+                                wdShowToast('Backup restored \u2014 reloading\u2026');
+                                setTimeout(function() { location.reload(); }, 1200);
+                            } catch(_) {
+                                wdShowToast('Could not read backup file');
+                            }
+                        };
+                        reader.readAsText(file);
+                        btnIm.value = '';
+                    });
+                })();
+
+                // Recipe presets
+                (function() {
+                    var WD_RECIPES_KEY = 'sprat-recipes';
+                    var WD_RECIPES_MAX = 20;
+
+                    function wdLoadRecipes() {
+                        try { var a = JSON.parse(localStorage.getItem(WD_RECIPES_KEY) || 'null'); return Array.isArray(a) ? a : []; } catch(_) { return []; }
+                    }
+                    function wdSaveRecipes(r) {
+                        try { localStorage.setItem(WD_RECIPES_KEY, JSON.stringify(r)); } catch(_) {}
+                    }
+                    function wdRenderRecipes() {
+                        var list = document.getElementById('recipe-list');
+                        if (!list) return;
+                        var recipes = wdLoadRecipes();
+                        if (recipes.length === 0) { list.innerHTML = '<div class="recipe-empty">No presets saved yet.</div>'; return; }
+                        list.innerHTML = '';
+                        recipes.forEach(function(recipe, idx) {
+                            var row = document.createElement('div');
+                            row.className = 'recipe-row';
+                            var nameSpan = document.createElement('span');
+                            nameSpan.className = 'recipe-name';
+                            nameSpan.textContent = recipe.name;
+                            var loadBtn = document.createElement('button');
+                            loadBtn.className = 'recipe-btn recipe-btn-load';
+                            loadBtn.textContent = 'Load';
+                            loadBtn.addEventListener('click', function() {
+                                var s = recipe.state;
+                                var ps = calc.state.project;
+                                if (s.project) {
+                                    if (s.project.length !== undefined)              ps.length       = s.project.length;
+                                    if (s.project.width !== undefined)               ps.width        = s.project.width;
+                                    if (s.project.thickness !== undefined)           ps.thickness    = s.project.thickness;
+                                    if (s.project.quantity !== undefined)            ps.quantity     = s.project.quantity;
+                                    if (s.project.waste_factor !== undefined)        ps.waste        = s.project.waste_factor;
+                                    if (s.project.pavers_per_day !== undefined)      ps.paversPerDay = s.project.pavers_per_day;
+                                    if (s.project.workers !== undefined)             ps.workers      = s.project.workers;
+                                    if (s.project.wage_rate !== undefined)           ps.wageRate     = s.project.wage_rate;
+                                    if (s.project.raw_material_transport !== undefined) ps.transport = s.project.raw_material_transport;
+                                }
+                                // Handle new mixes-array format or old flat format
+                                if (Array.isArray(s.mixes) && s.mixes.length > 0) {
+                                    calc.state.mixes = JSON.parse(JSON.stringify(s.mixes));
+                                    calc.state.activeMix = typeof s.active_mix === 'number' ? Math.min(s.active_mix, s.mixes.length - 1) : 0;
+                                } else {
+                                    calc.state.mixes[0] = {
+                                        name: 'Mix 1',
+                                        mix_parts: s.mix_parts || calc.state.mixes[0].mix_parts,
+                                        addition_a: s.addition_a || calc.state.mixes[0].addition_a,
+                                        addition_b: s.addition_b || calc.state.mixes[0].addition_b,
+                                        addition_c: s.addition_c || calc.state.mixes[0].addition_c,
+                                        water: s.water || calc.state.mixes[0].water,
+                                        admixtures: s.admixtures || calc.state.mixes[0].admixtures,
+                                        pigments: s.pigments || calc.state.mixes[0].pigments,
+                                    };
+                                    calc.state.activeMix = 0;
+                                }
+                                calc.renderMixSections(wdOnUpdate);
+                                calc.renderMixSelector();
+                                (function() {
+                                    var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v; };
+                                    var ps2 = calc.state.project;
+                                    set('project-length', ps2.length); set('project-width', ps2.width); set('project-thickness', ps2.thickness);
+                                    set('project-quantity', ps2.quantity); set('project-waste', ps2.waste);
+                                    set('project-pavers-per-day', ps2.paversPerDay); set('project-workers', ps2.workers||1);
+                                    set('project-wage-rate', ps2.wageRate); set('project-transport', ps2.transport);
+                                })();
+                                wdOnUpdate();
+                                wdShowToast('Recipe "' + recipe.name + '" loaded.');
+                            });
+                            var delBtn = document.createElement('button');
+                            delBtn.className = 'recipe-btn recipe-btn-del';
+                            delBtn.textContent = 'Delete';
+                            delBtn.addEventListener('click', function() {
+                                var r2 = wdLoadRecipes(); r2.splice(idx, 1); wdSaveRecipes(r2); wdRenderRecipes();
+                            });
+                            row.appendChild(nameSpan); row.appendChild(loadBtn); row.appendChild(delBtn);
+                            list.appendChild(row);
+                        });
+                    }
+
+                    var btnSR = document.getElementById('btn-save-recipe');
+                    if (btnSR) btnSR.addEventListener('click', function() {
+                        var input = document.getElementById('recipe-name-input');
+                        var name = input ? input.value.trim() : '';
+                        if (!name) { wdShowToast('Enter a preset name first.'); return; }
+                        var recipes = wdLoadRecipes();
+                        if (recipes.length >= WD_RECIPES_MAX) { wdShowToast('Max ' + WD_RECIPES_MAX + ' presets reached. Delete one first.'); return; }
+                        var s = calc.state;
+                        recipes.push({
+                            name: name,
+                            created: new Date().toISOString(),
+                            state: {
+                                project: { length: s.project.length, width: s.project.width, thickness: s.project.thickness, quantity: s.project.quantity, waste_factor: s.project.waste, pavers_per_day: s.project.paversPerDay, workers: s.project.workers||1, wage_rate: s.project.wageRate, raw_material_transport: s.project.transport },
+                                mixes: JSON.parse(JSON.stringify(s.mixes)),
+                                active_mix: s.activeMix
+                            }
+                        });
+                        wdSaveRecipes(recipes);
+                        wdRenderRecipes();
+                        if (input) input.value = '';
+                        wdShowToast('Recipe "' + name + '" saved.');
+                    });
+
+                    wdRenderRecipes();
+                })();
+
+                // Wire Cost tab buttons
+                (function() {
+                    var btnCopy = document.getElementById('btn-copy-summary');
+                    if (btnCopy) btnCopy.addEventListener('click', function() { calc.copySummary(wdShowToast); });
+
+                    var btnCSV = document.getElementById('btn-download-csv');
+                    if (btnCSV) btnCSV.addEventListener('click', function() { calc.downloadCSV(wdShowToast); });
+
+                    var toggleNC = document.getElementById('toggle-no-costs');
+                    if (toggleNC) toggleNC.addEventListener('click', function() {
+                        calc.state.noCosts = !calc.state.noCosts;
+                        toggleNC.classList.toggle('active', calc.state.noCosts);
+                        var slider = toggleNC.querySelector('.toggle-slider');
+                        if (slider) slider.style.transform = calc.state.noCosts ? 'translateX(20px)' : 'translateX(0)';
+                        wdOnUpdate();
+                        wdSaveState();
+                    });
+
+                    var toggleCPWd = document.getElementById('toggle-color-preview');
+                    if (toggleCPWd) toggleCPWd.addEventListener('click', function() {
+                        calc.state.colorPreview = !calc.state.colorPreview;
+                        toggleCPWd.classList.toggle('active', calc.state.colorPreview);
+                        toggleCPWd.setAttribute('aria-checked', String(calc.state.colorPreview));
+                        var cpsl = toggleCPWd.querySelector('.toggle-slider');
+                        if (cpsl) cpsl.style.transform = calc.state.colorPreview ? 'translateX(20px)' : 'translateX(0)';
+                        wdApplyColorPreview(calc);
+                        wdSaveState();
+                    });
+                })();
+
+                // ── Inventory fallback ────────────────────────────────────────
+                var FB_INV_KEY = 'sprat-inventory';
+                var fbInv = { linked: true, stock: {}, produced: 0, alwaysShowPurchase: false, purchaseQtys: {} };
+
+                // Load persisted inventory
+                (function() {
+                    try {
+                        var saved = JSON.parse(localStorage.getItem(FB_INV_KEY) || 'null');
+                        if (saved) {
+                            if (typeof saved.linked_to_calculator === 'boolean') fbInv.linked = saved.linked_to_calculator;
+                            if (typeof saved.always_show_purchase === 'boolean') fbInv.alwaysShowPurchase = saved.always_show_purchase;
+                            if (saved.stock && typeof saved.stock === 'object') fbInv.stock = saved.stock;
+                            if (saved.purchase_qtys && typeof saved.purchase_qtys === 'object') fbInv.purchaseQtys = saved.purchase_qtys;
+                            var today = new Date().toISOString().split('T')[0];
+                            if (saved.production_date === today && typeof saved.pavers_produced_today === 'number') {
+                                fbInv.produced = saved.pavers_produced_today;
+                            }
+                        }
+                    } catch(_) {}
+                })();
+
+                function fbSaveInventory() {
+                    try {
+                        localStorage.setItem(FB_INV_KEY, JSON.stringify({
+                            linked_to_calculator: fbInv.linked,
+                            always_show_purchase: fbInv.alwaysShowPurchase,
+                            stock: fbInv.stock,
+                            purchase_qtys: fbInv.purchaseQtys,
+                            pavers_produced_today: fbInv.produced,
+                            production_date: new Date().toISOString().split('T')[0]
+                        }));
+                    } catch(_) {}
+                }
+
+                function fbMinPurchaseUnit(stockKey) {
+                    if (stockKey.indexOf('_bags') >= 0) return 1;
+                    if (stockKey.indexOf('_yd3')  >= 0) return 0.25;
+                    return 0.1;
+                }
+
+                var pqtyKeyMap = {
+                    portland_bags: 'portlandPqty', white_bags: 'whitePqty',
+                    sand_yd3: 'sandPqty', stone_dust_b_yd3: 'stoneDustPqty', gcc400_b_yd3: 'gcc400Pqty',
+                    stone_dust_c_yd3: 'stoneDustPqty', gcc400_c_yd3: 'gcc400Pqty',
+                    regular_gravel_yd3: 'regularGravelPqty', chip_gravel_yd3: 'chipGravelPqty',
+                    white_gravel_yd3: 'whiteGravelPqty', white_lime_yd3: 'whiteLimePqty',
+                    micro_fibre_kg: 'microFibrePqty', macro_fibre_kg: 'macroFibrePqty',
+                    water_reducer_kg: 'waterReducerPqty', hardener_kg: 'hardenerPqty',
+                    pigment1_l: 'waterPqty', pigment2_l: 'waterPqty',
+                    water_l: 'waterPqty'
+                };
+
+                function fbGetPurchaseUnit(stockKey, calc) {
+                    var pkey = pqtyKeyMap[stockKey];
+                    if (pkey && calc && calc.state && calc.state.prices && calc.state.prices[pkey]) {
+                        return calc.state.prices[pkey];
+                    }
+                    return fbMinPurchaseUnit(stockKey);
+                }
+
+                function fbQtyDecimals(stockKey) {
+                    if (stockKey.indexOf('_bags') >= 0) return 0;
+                    if (stockKey.indexOf('_yd3')  >= 0) return 2;
+                    return 1;
+                }
+
+                function fbCalcShortfall(m, calc) {
+                    var deficit = m.remaining < 0 ? -m.remaining : 0;
+                    var rounded = fbRoundPurchaseUnit(deficit, m.stockKey);
+                    return Math.max(rounded, fbGetPurchaseUnit(m.stockKey, calc));
+                }
+
+                function fbUpdatePurchaseRow(m) {
+                    var pillEl = document.getElementById('inv-purchase-pill-' + m.key);
+                    if (!pillEl) return;
+                    // Water unlimited — always hide
+                    if (m.stockKey === 'water_l' && calc && calc.state && calc.state.prices.waterUnlimited !== false) {
+                        pillEl.style.display = 'none';
+                        return;
+                    }
+                    var isDepleted = m.linked && (m.stock <= 0 || m.remaining <= 0);
+                    var isLow = m.linked && m.daysRemaining !== null && m.daysRemaining > 0 && m.daysRemaining <= 2;
+                    var alwaysShow = fbInv.alwaysShowPurchase;
+                    var show = alwaysShow || isDepleted || isLow;
+                    pillEl.style.display = show ? '' : 'none';
+                    pillEl.classList.remove('purchase-glow-low', 'purchase-glow-empty');
+                    if (alwaysShow && isDepleted) pillEl.classList.add('purchase-glow-empty');
+                    else if (alwaysShow && isLow) pillEl.classList.add('purchase-glow-low');
+                    if (show && fbInv.purchaseQtys[m.key] === undefined) {
+                        fbInv.purchaseQtys[m.key] = fbCalcShortfall(m, calc);
+                        var qtyEl = document.getElementById('inv-purchase-qty-' + m.key);
+                        if (qtyEl) qtyEl.textContent = fbInv.purchaseQtys[m.key].toFixed(fbQtyDecimals(m.stockKey));
+                    }
+                }
+
+                function fbGetUnit(stockKey) {
+                    if (stockKey.endsWith('_bags')) return 'bags';
+                    if (stockKey.endsWith('_yd3')) return 'yd\u00B3';
+                    if (stockKey.endsWith('_kg'))  return 'kg';
+                    if (stockKey === 'water_l' || stockKey.endsWith('_l')) return 'L';
+                    return '';
+                }
+
+                function fbFmtVal(val, stockKey) {
+                    var u = fbGetUnit(stockKey);
+                    if (u === 'bags') return val.toFixed(1) + ' bags';
+                    if (u === 'yd\u00B3') return val.toFixed(3) + ' yd\u00B3';
+                    if (u === 'kg')  return val.toFixed(3) + ' kg';
+                    if (u === 'L')   return val.toFixed(2) + ' L';
+                    return val.toFixed(3);
+                }
+
+                var FB_L_TO_YD3 = 1.30795 / 1000;
+                var FB_M3_TO_YD3 = 1.30795;
+
+                var FB_PIGMENT_PRICE_WD = {
+                    'Red Iron Oxide': 1371.72, 'Yellow Iron Oxide': 600.54,
+                    'Black Iron Oxide': 1919.34, 'Blue Pigment': 7143,
+                    'Green Pigment': 1518.57, 'Brown Pigment': 3000,
+                    'White Titanium Dioxide': 2591.32, 'None': 0
+                };
+
+                var WD_PIGMENT_COLORS = {
+                    'Red Iron Oxide': [140,82,57], 'Yellow Iron Oxide': [175,128,80],
+                    'Black Iron Oxide': [58,58,58], 'Blue Pigment': [74,111,165],
+                    'Green Pigment': [90,125,107], 'Brown Pigment': [122,92,58],
+                    'White Titanium Dioxide': [239,239,239], 'None': null
+                };
+                var WD_BASE_GREY  = [154,154,148];
+                var WD_BASE_WHITE = [239,239,239];
+
+                function wdLerpColor(a, b, t) {
+                    return [Math.round(a[0]+(b[0]-a[0])*t), Math.round(a[1]+(b[1]-a[1])*t), Math.round(a[2]+(b[2]-a[2])*t)];
+                }
+                function wdComputePaverColor(mix) {
+                    var a = mix.addition_a;
+                    var portland = a.portland||0, white = a.white||0, custom = a.custom||0;
+                    var total = portland+white+custom||1;
+                    var greyFrac = (portland+custom)/total;
+                    var base = wdLerpColor(WD_BASE_WHITE, WD_BASE_GREY, greyFrac);
+                    var pct = mix.pigments.total_percent||0;
+                    if (pct<=0) return base;
+                    var p1 = WD_PIGMENT_COLORS[mix.pigments.pigment1_name];
+                    var p2 = WD_PIGMENT_COLORS[mix.pigments.pigment2_name];
+                    var parts1 = mix.pigments.pigment1_parts||0, parts2 = mix.pigments.pigment2_parts||0;
+                    var pigColor;
+                    if (!p1 && !p2) return base;
+                    if (!p2||parts2===0) { pigColor = p1||base; }
+                    else if (!p1||parts1===0) { pigColor = p2||base; }
+                    else { var tp=parts1+parts2; pigColor=[Math.round(p1[0]*parts1/tp+p2[0]*parts2/tp),Math.round(p1[1]*parts1/tp+p2[1]*parts2/tp),Math.round(p1[2]*parts1/tp+p2[2]*parts2/tp)]; }
+                    return wdLerpColor(base, pigColor, Math.min(pct/6.0,1.0));
+                }
+                function wdApplyColorPreview(calcRef) {
+                    var header = document.querySelector('.header');
+                    if (!header) return;
+                    var hppEl = document.getElementById('header-profit-per-paver');
+                    var isProfit = hppEl ? hppEl.dataset.profit !== '0' : true;
+                    if (!calcRef.state.colorPreview) {
+                        header.style.background=''; header.style.color='';
+                        if (hppEl && hppEl.textContent !== '--') {
+                            hppEl.style.color = isProfit ? '#4ade80' : '#f87171';
+                        }
+                        return;
+                    }
+                    var rgb = wdComputePaverColor(calcRef.getActiveMix());
+                    header.style.background = 'rgb('+rgb[0]+','+rgb[1]+','+rgb[2]+')';
+                    var lum = (0.2126*rgb[0]+0.7152*rgb[1]+0.0722*rgb[2])/255;
+                    var lightBg = lum > 0.5;
+                    header.style.color = lightBg ? '#1f2937' : '#ffffff';
+                    if (hppEl && hppEl.textContent !== '--') {
+                        hppEl.style.color = isProfit
+                            ? (lightBg ? '#166534' : '#4ade80')
+                            : (lightBg ? '#b91c1c' : '#f87171');
+                    }
+                }
+
+                function fbGetStockPrice(stockKey, calc) {
+                    var p = calc.state.prices;
+                    var mix = calc.getActiveMix();
+                    var pig = mix.pigments;
+                    switch(stockKey) {
+                        case 'portland_bags':      return p.portland || 0;
+                        case 'white_bags':         return p.white || 0;
+                        case 'sand_yd3':           return p.sand || 0;
+                        case 'stone_dust_b_yd3':   return p.stoneDust || 0;
+                        case 'gcc400_b_yd3':       return p.gcc400 || 0;
+                        case 'regular_gravel_yd3': return p.regularGravel || 0;
+                        case 'chip_gravel_yd3':    return p.chipGravel || 0;
+                        case 'white_gravel_yd3':   return p.whiteGravel || 0;
+                        case 'stone_dust_c_yd3':   return p.stoneDust || 0;
+                        case 'gcc400_c_yd3':       return p.gcc400 || 0;
+                        case 'white_lime_yd3':     return p.whiteLime || 0;
+                        case 'water_l':            return 0;
+                        case 'micro_fibre_kg':     return p.microFibre || 0;
+                        case 'macro_fibre_kg':     return p.macroFibre || 0;
+                        case 'water_reducer_kg':   return p.waterReducer || 0;
+                        case 'hardener_kg':        return p.hardener || 0;
+                        case 'pigment1_l':         return FB_PIGMENT_PRICE_WD[pig.pigment1_name] || 0;
+                        case 'pigment2_l':         return FB_PIGMENT_PRICE_WD[pig.pigment2_name] || 0;
+                        default:                   return 0;
+                    }
+                }
+
+                function fbRoundPurchaseUnit(qty, stockKey) {
+                    if (stockKey.indexOf('_bags') >= 0) return Math.ceil(qty);
+                    if (stockKey.indexOf('_yd3')  >= 0) return Math.ceil(qty * 4) / 4;
+                    if (stockKey.indexOf('_kg')   >= 0) return Math.ceil(qty * 10) / 10;
+                    if (stockKey.indexOf('_l')    >= 0) return Math.ceil(qty * 10) / 10;
+                    return qty;
+                }
+
+                function fbIsActionable(stockKey) { return stockKey !== 'water_l'; }
+
+                function fbFmtCurrency(v) {
+                    return 'JMD ' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+
+                function fbBuildMaterials(calc) {
+                    var mat = calc.calculateMaterials();
+                    var adm = calc.calculateAdmixtures();
+                    var s = calc.state;
+                    var qty = s.project.quantity * s.project.waste;
+                    if (qty <= 0) return [];
+
+                    var ppd = s.project.paversPerDay || 0;
+                    var produced = fbInv.produced;
+                    var linked = fbInv.linked;
+
+                    function make(key, name, stockKey, totalForBatch) {
+                        var stock = fbInv.stock[stockKey] || 0;
+                        if (!linked) return { key: key, name: name, stockKey: stockKey, stock: stock, linked: false };
+                        var perPaver = totalForBatch / qty;
+                        var usedToday = perPaver * produced;
+                        var remaining = stock - usedToday;
+                        var dailyUsage = perPaver * ppd;
+                        var daysRemaining = dailyUsage > 0 ? remaining / dailyUsage : null;
+                        return { key: key, name: name, stockKey: stockKey, stock: stock, linked: true, perPaver: perPaver, usedToday: usedToday, remaining: remaining, dailyUsage: dailyUsage, daysRemaining: daysRemaining };
+                    }
+
+                    var items = [];
+                    // Cement
+                    if (mat.portland.bags > 0)
+                        items.push(make('portland', 'Portland Cement', 'portland_bags', mat.portland.bags));
+                    if (mat.white.bags > 0)
+                        items.push(make('white', 'White Cement', 'white_bags', mat.white.bags));
+                    // Fine aggregates
+                    if (mat.sand.volumeL > 0)
+                        items.push(make('sand', 'Sand', 'sand_yd3', mat.sand.volumeL * FB_L_TO_YD3));
+                    if (mat.stoneDustB.volumeL > 0)
+                        items.push(make('stone_dust_b', 'Stone Dust (Fine)', 'stone_dust_b_yd3', mat.stoneDustB.volumeL * FB_L_TO_YD3));
+                    if (mat.gcc400B.volumeL > 0)
+                        items.push(make('gcc400_b', 'GCC 400 (Fine)', 'gcc400_b_yd3', mat.gcc400B.volumeL * FB_L_TO_YD3));
+                    // Coarse aggregates
+                    var activeMix = calc.getActiveMix();
+                    var c = activeMix.addition_c;
+                    var coarseTotal = c.regular_gravel + c.chip_gravel + c.white_gravel + c.stone_dust + c.gcc400 + c.white_lime + c.custom;
+                    var coarseTotalYd3 = mat.totalCoarseL * FB_L_TO_YD3;
+                    var coarsePairs = [
+                        ['regular_gravel','Regular Gravel','regular_gravel_yd3', c.regular_gravel],
+                        ['chip_gravel','Chip Gravel','chip_gravel_yd3', c.chip_gravel],
+                        ['white_gravel','White Gravel','white_gravel_yd3', c.white_gravel],
+                        ['stone_dust_c','Stone Dust (Coarse)','stone_dust_c_yd3', c.stone_dust],
+                        ['gcc400_c','GCC 400 (Coarse)','gcc400_c_yd3', c.gcc400],
+                        ['white_lime','White Lime','white_lime_yd3', c.white_lime]
+                    ];
+                    coarsePairs.forEach(function(p) {
+                        if (p[3] > 0) {
+                            var yd3 = coarseTotal > 0 ? coarseTotalYd3 * (p[3] / coarseTotal) : 0;
+                            items.push(make(p[0], p[1], p[2], yd3));
+                        }
+                    });
+                    // Water
+                    if (mat.water.volumeL > 0)
+                        items.push(make('water', 'Water', 'water_l', mat.water.volumeL));
+                    // Admixtures
+                    if (adm.microFibreKg > 0)
+                        items.push(make('micro_fibre', 'Micro Fibre', 'micro_fibre_kg', adm.microFibreKg));
+                    if (adm.macroFibreKg > 0)
+                        items.push(make('macro_fibre', 'Macro Fibre', 'macro_fibre_kg', adm.macroFibreKg));
+                    if (adm.waterReducerKg > 0)
+                        items.push(make('water_reducer', 'Water Reducer', 'water_reducer_kg', adm.waterReducerKg));
+                    if (adm.hardenerKg > 0)
+                        items.push(make('hardener', 'Hardener', 'hardener_kg', adm.hardenerKg));
+                    // Pigments
+                    var pig = activeMix.pigments;
+                    if (pig.total_percent > 0 && pig.pigment1_parts > 0) {
+                        var pig1Total = mat.totalCementKg * (pig.total_percent / 100) * pig.pigment1_parts / ((pig.pigment1_parts + pig.pigment2_parts) || 1);
+                        items.push(make('pigment1', pig.pigment1_name, 'pigment1_l', pig1Total));
+                    }
+                    if (pig.total_percent > 0 && pig.pigment2_parts > 0 && pig.pigment2_name !== 'None') {
+                        var pig2Total = mat.totalCementKg * (pig.total_percent / 100) * pig.pigment2_parts / ((pig.pigment1_parts + pig.pigment2_parts) || 1);
+                        items.push(make('pigment2', pig.pigment2_name, 'pigment2_l', pig2Total));
+                    }
+                    return items;
+                }
+
+                function fbUpdateStatus(m) {
+                    var statusEl = document.getElementById('inv-status-' + m.key);
+                    if (!statusEl) return;
+                    if (!m.linked) { statusEl.textContent = '--'; statusEl.className = 'inventory-status'; return; }
+                    var ppEl   = document.getElementById('inv-pp-'   + m.key);
+                    var usedEl = document.getElementById('inv-used-' + m.key);
+                    var remEl  = document.getElementById('inv-rem-'  + m.key);
+                    var remRow = document.getElementById('inv-rem-row-' + m.key);
+                    var daysEl = document.getElementById('inv-days-' + m.key);
+                    if (ppEl)   ppEl.textContent   = fbFmtVal(m.perPaver,   m.stockKey);
+                    if (usedEl) usedEl.textContent = fbFmtVal(m.usedToday,  m.stockKey);
+                    if (remEl)  remEl.textContent  = fbFmtVal(m.remaining,  m.stockKey);
+                    if (remRow) remRow.className = m.remaining < 0 ? 'result-row inventory-negative' : 'result-row';
+                    if (m.stock <= 0) {
+                        statusEl.textContent = 'NO STOCK'; statusEl.className = 'inventory-status inventory-status-empty';
+                    } else if (m.daysRemaining === null) {
+                        statusEl.textContent = 'N/A'; statusEl.className = 'inventory-status';
+                    } else if (m.remaining <= 0) {
+                        statusEl.textContent = 'DEPLETED'; statusEl.className = 'inventory-status inventory-status-empty';
+                        if (daysEl) daysEl.textContent = '0d';
+                    } else if (m.daysRemaining > 2) {
+                        statusEl.textContent = m.daysRemaining.toFixed(1) + 'd'; statusEl.className = 'inventory-status inventory-status-ok';
+                        if (daysEl) daysEl.textContent = m.daysRemaining.toFixed(1) + 'd';
+                    } else {
+                        statusEl.textContent = m.daysRemaining.toFixed(1) + 'd'; statusEl.className = 'inventory-status inventory-status-low';
+                        if (daysEl) daysEl.textContent = m.daysRemaining.toFixed(1) + 'd';
+                    }
+                }
+
+                function fbRenderSummaryCard(materials, calc) {
+                    var el = document.getElementById('inv-summary-card');
+                    if (!el) return;
+                    if (!fbInv.linked) { el.style.display = 'none'; return; }
+                    var actionable = materials.filter(function(m) { return m.linked && fbIsActionable(m.stockKey) && m.stock > 0; });
+                    if (!actionable.length) { el.style.display = 'none'; return; }
+                    el.style.display = 'block';
+
+                    // Bottleneck
+                    var bottleneck = null; var minDays = null;
+                    actionable.forEach(function(m) {
+                        if (m.daysRemaining !== null && m.remaining > 0 && (minDays === null || m.daysRemaining < minDays)) {
+                            minDays = m.daysRemaining; bottleneck = m;
+                        }
+                    });
+
+                    var ppd = calc.state.project.paversPerDay || 0;
+                    var dailyCost = materials.reduce(function(s, m) {
+                        return s + (m.linked && m.perPaver ? m.perPaver * ppd * fbGetStockPrice(m.stockKey, calc) : 0);
+                    }, 0);
+                    var restockCost = materials.reduce(function(s, m) {
+                        return s + (m.stock > 0 ? m.stock * fbGetStockPrice(m.stockKey, calc) : 0);
+                    }, 0);
+
+                    var runwayHtml = bottleneck
+                        ? '<div class="result-row"><span class="result-label">Production Runway</span><span class="result-value" style="font-weight:700;">' + minDays.toFixed(1) + ' days</span></div>' +
+                          '<div class="result-row"><span class="result-label">Limited By</span><span class="result-value">' + bottleneck.name + '</span></div>'
+                        : '<div class="result-row"><span class="result-label">Production Runway</span><span class="result-value" style="color:var(--text-secondary);">\u2014</span></div>';
+
+                    el.innerHTML = '<h2 class="card-title">Stock Summary</h2>' +
+                        runwayHtml +
+                        '<div class="result-row"><span class="result-label">Daily Material Cost</span><span class="result-value">' + fbFmtCurrency(dailyCost) + '</span></div>' +
+                        '<div class="result-row"><span class="result-label">Restock Cost</span><span class="result-value">' + fbFmtCurrency(restockCost) + '</span></div>';
+                }
+
+                // D1: HTML escape helper (fallback path)
+                function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+                function fbRenderInventory(calc) {
+                    var container = document.getElementById('inventory-materials');
+                    if (!container) return;
+                    var materials = fbBuildMaterials(calc);
+
+                    if (materials.length === 0) {
+                        container.innerHTML = '<div class="card"><p style="color:var(--text-secondary);font-size:0.875rem;">Calculate a mix design first to see inventory tracking.</p></div>';
+                        fbRenderSummaryCard([], calc);
+                        return;
+                    }
+
+                    var groups = [
+                        { label: 'Cement',            keys: ['portland','white'] },
+                        { label: 'Fine Aggregates',   keys: ['sand','stone_dust_b','gcc400_b'] },
+                        { label: 'Coarse Aggregates', keys: ['regular_gravel','chip_gravel','white_gravel','stone_dust_c','gcc400_c','white_lime'] },
+                        { label: 'Water',             keys: ['water'] },
+                        { label: 'Admixtures',        keys: ['micro_fibre','macro_fibre','water_reducer','hardener'] },
+                        { label: 'Pigments',          keys: ['pigment1','pigment2'] }
+                    ];
+
+                    var html = '';
+                    groups.forEach(function(g) {
+                        var gm = materials.filter(function(m) { return g.keys.indexOf(m.key) >= 0; });
+                        if (!gm.length) return;
+                        var groupValue = gm.reduce(function(s, m) { return s + m.stock * fbGetStockPrice(m.stockKey, calc); }, 0);
+                        html += '<div class="card">';
+                        html += '<div class="inventory-group-label">' + g.label + '</div>';
+                        gm.forEach(function(m) {
+                            var unit = fbGetUnit(m.stockKey);
+                            html += '<div class="inventory-item" data-inv-key="' + m.key + '">';
+                            html += '<div class="inventory-item-header">';
+                            html += '<span class="inventory-item-name">' + esc(m.name) + '</span>';
+                            if (m.linked) {
+                                html += '<div class="inv-purchase-pill" id="inv-purchase-pill-' + m.key + '" style="display:none;">';
+                                html += '<span class="inv-purchase-label">Purchase</span>';
+                                html += '<button class="inv-purchase-btn inv-purchase-dec" data-key="' + m.key + '">−</button>';
+                                html += '<span class="inv-purchase-qty" id="inv-purchase-qty-' + m.key + '">0</span>';
+                                html += '<span class="inv-purchase-unit">' + esc(unit) + '</span>';
+                                html += '<button class="inv-purchase-btn inv-purchase-inc" data-key="' + m.key + '">+</button>';
+                                html += '</div>';
+                            }
+                            html += '<span class="inventory-status" id="inv-status-' + m.key + '">--</span>';
+                            html += '</div>';
+                            html += '<div class="input-group" style="margin-bottom:8px;">';
+                            html += '<label class="input-label">Stock on Hand</label>';
+                            html += '<div class="input-row">';
+                            html += '<input type="number" id="inv-stock-' + m.key + '" class="input-number" value="' + m.stock + '" min="0" step="0.1" data-stock-key="' + m.stockKey + '">';
+                            html += '<span class="input-unit">' + esc(unit) + '</span>';
+                            html += '</div></div>';
+                            if (m.linked) {
+                                html += '<div class="result-row"><span class="result-label">Per Paver</span><span class="result-value" id="inv-pp-' + m.key + '">--</span></div>';
+                                html += '<div class="result-row"><span class="result-label">Used Today</span><span class="result-value" id="inv-used-' + m.key + '">--</span></div>';
+                                html += '<div class="result-row" id="inv-rem-row-' + m.key + '"><span class="result-label">Remaining</span><span class="result-value" id="inv-rem-' + m.key + '">--</span></div>';
+                                html += '<div class="result-row"><span class="result-label">Days Remaining</span><span class="result-value" id="inv-days-' + m.key + '">--</span></div>';
+                            }
+                            html += '</div>';
+                        });
+                        if (groupValue > 0) {
+                            html += '<div class="inventory-group-subtotal"><span>Stock Value</span><span>' + fbFmtCurrency(groupValue) + '</span></div>';
+                        }
+                        html += '</div>';
+                    });
+                    container.innerHTML = html;
+
+                    // Wire stock inputs
+                    container.querySelectorAll('input[data-stock-key]').forEach(function(input) {
+                        input.addEventListener('input', function(e) {
+                            fbInv.stock[e.target.dataset.stockKey] = parseFloat(e.target.value) || 0;
+                            fbSaveInventory();
+                            var mats = fbBuildMaterials(calc);
+                            mats.forEach(fbUpdateStatus);
+                            fbRenderSummaryCard(mats, calc);
+                        });
+                    });
+
+                    // Wire purchase +/- buttons
+                    container.querySelectorAll('.inv-purchase-dec, .inv-purchase-inc').forEach(function(btn) {
+                        btn.addEventListener('click', function() {
+                            var key = btn.dataset.key;
+                            var m = materials.find(function(x) { return x.key === key; });
+                            if (!m) return;
+                            var step = fbGetPurchaseUnit(m.stockKey, calc);
+                            if (fbInv.purchaseQtys[key] === undefined) fbInv.purchaseQtys[key] = fbCalcShortfall(m, calc);
+                            fbInv.purchaseQtys[key] = btn.classList.contains('inv-purchase-inc')
+                                ? fbInv.purchaseQtys[key] + step
+                                : Math.max(0, fbInv.purchaseQtys[key] - step);
+                            var qtyEl = document.getElementById('inv-purchase-qty-' + key);
+                            if (qtyEl) qtyEl.textContent = fbInv.purchaseQtys[key].toFixed(fbQtyDecimals(m.stockKey));
+                            fbSaveInventory();
+                        });
+                    });
+
+                    materials.forEach(fbUpdateStatus);
+                    materials.forEach(fbUpdatePurchaseRow);
+                    fbRenderSummaryCard(materials, calc);
+
+                    // Header stock status
+                    (function() {
+                        var el = document.getElementById('header-stock-status');
+                        if (!el) return;
+                        var linked = materials.filter(function(m) { return m.linked; });
+                        var depleted = linked.filter(function(m) { return m.stock <= 0 || m.remaining <= 0; });
+                        var low = linked.filter(function(m) { return m.daysRemaining !== null && m.daysRemaining > 0 && m.daysRemaining <= 2; });
+                        var bottleneck = linked.filter(function(m) { return m.daysRemaining !== null && m.remaining > 0; })
+                            .sort(function(a,b) { return a.daysRemaining - b.daysRemaining; })[0] || null;
+                        if (depleted.length > 0) {
+                            el.textContent = 'DEPLETED'; el.className = 'stock-empty'; el.style.display = ''; el._stockTarget = depleted[0].key;
+                        } else if (low.length > 0) {
+                            el.textContent = 'LOW STOCK'; el.className = 'stock-low'; el.style.display = ''; el._stockTarget = low[0].key;
+                        } else if (bottleneck) {
+                            el.textContent = bottleneck.daysRemaining.toFixed(1) + 'd stock'; el.className = 'stock-ok'; el.style.display = ''; el._stockTarget = bottleneck.key;
+                        } else {
+                            el.style.display = 'none';
+                        }
+                    })();
+                }
+
+                function fbGeneratePurchaseOrder(calc) {
+                    var target = parseFloat((document.getElementById('target-additional-pavers') || {}).value) || 0;
+                    var materials = fbBuildMaterials(calc);
+                    var output = document.getElementById('purchase-order-output');
+                    if (!output) return;
+
+                    var orderItems = [];
+                    materials.forEach(function(m) {
+                        if (!m.linked || !m.perPaver || !fbIsActionable(m.stockKey)) return;
+                        var needed = m.perPaver * target;
+                        var available = m.linked ? Math.max(0, m.remaining) : m.stock;
+                        var qty = fbRoundPurchaseUnit(Math.max(0, needed - available), m.stockKey);
+                        if (qty <= 0) return;
+                        var unitPrice = fbGetStockPrice(m.stockKey, calc);
+                        orderItems.push({ name: m.name, qty: qty, stockKey: m.stockKey, unitPrice: unitPrice, cost: qty * unitPrice });
+                    });
+
+                    if (!orderItems.length) {
+                        output.innerHTML = '<div class="purchase-order-empty">Current stock covers ' + target + ' pavers. No materials needed.</div>';
+                        return;
+                    }
+
+                    if (window.PurchaseOrderEngine) {
+                        var s = calc.state.settings;
+                        var settings = { business_name: s.businessName||'', business_address: s.businessAddress||'', business_phone: s.businessPhone||'', business_email: s.businessEmail||'', business_tax_id: s.businessTaxId||'', tax_rate: s.taxRate||0 };
+                        window.PurchaseOrderEngine.generate(orderItems, settings, calc.state.project.projectName, output);
+                    } else {
+                        var grandTotal = orderItems.reduce(function(s, i) { return s + i.cost; }, 0);
+                        var html = '<div class="purchase-order-card"><div class="purchase-order-title">Order for ' + target + ' additional pavers</div>';
+                        orderItems.forEach(function(item) {
+                            var unit = fbGetUnit(item.stockKey);
+                            var qtyStr = item.stockKey.indexOf('_bags') >= 0 ? item.qty + ' bags' : item.stockKey.indexOf('_yd3') >= 0 ? item.qty.toFixed(2) + ' yd\u00B3' : item.qty.toFixed(1) + ' ' + unit;
+                            html += '<div class="purchase-order-item"><span>' + item.name + '<br><span style="font-size:0.75rem;color:var(--text-secondary);">' + qtyStr + '</span></span><span class="purchase-order-qty">' + fbFmtCurrency(item.cost) + '</span></div>';
+                        });
+                        html += '<div class="purchase-order-total"><span>Total</span><span>' + fbFmtCurrency(grandTotal) + '</span></div></div>';
+                        output.innerHTML = html;
+                    }
+                }
+
+                function fbUpdateInventory(calc) {
+                    // Update rate display
+                    var rateEl = document.getElementById('inventory-daily-rate');
+                    if (rateEl) rateEl.textContent = (calc.state.project.paversPerDay || 0) + ' pavers/day';
+                    // Show/hide purchase order section
+                    var orderSection = document.getElementById('purchase-order-section');
+                    if (orderSection) orderSection.style.display = fbInv.linked ? 'block' : 'none';
+                    fbRenderInventory(calc);
+                }
+
+                // Wire toggle link button
+                var toggleEl = document.getElementById('toggle-calculator-link');
+                if (toggleEl) {
+                    toggleEl.setAttribute('aria-checked', String(fbInv.linked));
+                    var slider = toggleEl.querySelector('.toggle-slider');
+                    if (slider) slider.style.transform = fbInv.linked ? 'translateX(20px)' : 'translateX(0)';
+                    var hintEl = document.getElementById('inventory-link-hint');
+                    if (hintEl && !fbInv.linked) hintEl.textContent = 'Stock ledger only. Toggle on to link usage to the mix calculator.';
+                    toggleEl.addEventListener('click', function() {
+                        fbInv.linked = !fbInv.linked;
+                        toggleEl.setAttribute('aria-checked', String(fbInv.linked));
+                        var sl = toggleEl.querySelector('.toggle-slider');
+                        if (sl) sl.style.transform = fbInv.linked ? 'translateX(20px)' : 'translateX(0)';
+                        var hint = document.getElementById('inventory-link-hint');
+                        if (hint) hint.textContent = fbInv.linked ? '' : 'Stock ledger only. Toggle on to link usage to the mix calculator.';
+                        fbSaveInventory();
+                        fbUpdateInventory(calc);
+                    });
+                }
+
+                // Wire always-show-purchase toggle
+                var alwaysPurchaseToggle = document.getElementById('toggle-always-purchase');
+                if (alwaysPurchaseToggle) {
+                    alwaysPurchaseToggle.setAttribute('aria-checked', String(fbInv.alwaysShowPurchase));
+                    var apSlider = alwaysPurchaseToggle.querySelector('.toggle-slider');
+                    if (apSlider) apSlider.style.transform = fbInv.alwaysShowPurchase ? 'translateX(20px)' : 'translateX(0)';
+                    alwaysPurchaseToggle.addEventListener('click', function() {
+                        fbInv.alwaysShowPurchase = !fbInv.alwaysShowPurchase;
+                        alwaysPurchaseToggle.setAttribute('aria-checked', String(fbInv.alwaysShowPurchase));
+                        var sl = alwaysPurchaseToggle.querySelector('.toggle-slider');
+                        if (sl) sl.style.transform = fbInv.alwaysShowPurchase ? 'translateX(20px)' : 'translateX(0)';
+                        fbSaveInventory();
+                        fbUpdateInventory(calc);
+                    });
+                }
+
+                // Header stock status tap
+                (function() {
+                    var el = document.getElementById('header-stock-status');
+                    if (!el) return;
+                    function goToStock() {
+                        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+                        document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+                        var invBtn = document.querySelector('[data-tab="inventory"]');
+                        if (invBtn) invBtn.classList.add('active');
+                        var invTab = document.getElementById('tab-inventory');
+                        if (invTab) invTab.classList.add('active');
+                        var key = el._stockTarget;
+                        if (key) {
+                            var target = document.querySelector('[data-inv-key="' + key + '"]');
+                            if (target) setTimeout(function() { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
+                        }
+                    }
+                    el.addEventListener('click', goToStock);
+                    el.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') goToStock(); });
+                })();
+
+                // Wire pavers-produced-today input
+                var producedEl = document.getElementById('inventory-pavers-today');
+                if (producedEl) {
+                    if (fbInv.produced > 0) producedEl.value = fbInv.produced;
+                    producedEl.addEventListener('input', function() {
+                        fbInv.produced = parseFloat(producedEl.value) || 0;
+                        fbSaveInventory();
+                        var mats = fbBuildMaterials(calc);
+                        mats.forEach(fbUpdateStatus);
+                        fbRenderSummaryCard(mats, calc);
+                    });
+                }
+
+                // Wire clear-today button
+                var clearBtn = document.getElementById('btn-clear-today');
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', function() {
+                        fbInv.produced = 0;
+                        if (producedEl) producedEl.value = 0;
+                        fbSaveInventory();
+                        var mats = fbBuildMaterials(calc);
+                        mats.forEach(fbUpdateStatus);
+                        fbRenderSummaryCard(mats, calc);
+                    });
+                }
+
+                // Wire purchase order button
+                var generateOrderBtn = document.getElementById('btn-generate-order');
+                if (generateOrderBtn) {
+                    generateOrderBtn.addEventListener('click', function() {
+                        fbGeneratePurchaseOrder(calc);
+                    });
+                }
+
+                // Initial inventory render
+                fbUpdateInventory(calc);
+            }
+        }
+    }, 2000);
+    </script>
+
+    <script>
+    // E1: Online/offline indicator
+    (function() {
+        function updateOnlineStatus() { document.body.classList.toggle('is-offline', !navigator.onLine); }
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus();
+    })();
+
+    // E2: Service worker registration + update prompt
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/service-worker.js').then(function(reg) {
+            reg.addEventListener('updatefound', function() {
+                var newWorker = reg.installing;
+                if (newWorker) {
+                    newWorker.addEventListener('statechange', function() {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            var toast = document.getElementById('toast');
+                            var msg = document.getElementById('toast-message');
+                            if (toast && msg) {
+                                msg.textContent = 'App updated \u2014 tap to reload';
+                                toast.classList.add('show');
+                                toast.style.cursor = 'pointer';
+                                toast.addEventListener('click', function() { window.location.reload(); }, { once: true });
+                            }
+                        }
+                    });
+                }
+            });
+        });
+        navigator.serviceWorker.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'SW_UPDATED') {
+                var toast = document.getElementById('toast');
+                var msg = document.getElementById('toast-message');
+                if (toast && msg) {
+                    msg.textContent = 'App updated \u2014 tap to reload';
+                    toast.classList.add('show');
+                    toast.style.cursor = 'pointer';
+                    toast.addEventListener('click', function() { window.location.reload(); }, { once: true });
+                }
+            }
+        });
+    }
+    </script>
+</body>
+</html>
