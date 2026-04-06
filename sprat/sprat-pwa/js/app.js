@@ -42,6 +42,37 @@ const state = {
         micro_fibre: 1622.6,
         macro_fibre: 2200,
         water_reducer: 1378.34,
+        hardener: 0,
+        // Purchase unit sizes
+        portland_pqty: 1,
+        white_pqty: 1,
+        sand_pqty: 1,
+        stone_dust_pqty: 1,
+        gcc400_pqty: 1,
+        regular_gravel_pqty: 1,
+        chip_gravel_pqty: 1,
+        white_gravel_pqty: 1,
+        white_lime_pqty: 1,
+        micro_fibre_pqty: 1,
+        macro_fibre_pqty: 1,
+        water_reducer_pqty: 1,
+        hardener_pqty: 1,
+        water_pqty: 1000,
+        water_unlimited: true,
+        // Reorder points (0 = disabled)
+        reorder_portland: 0,
+        reorder_white: 0,
+        reorder_sand: 0,
+        reorder_stone_dust: 0,
+        reorder_gcc400: 0,
+        reorder_regular_gravel: 0,
+        reorder_chip_gravel: 0,
+        reorder_white_gravel: 0,
+        reorder_white_lime: 0,
+        reorder_micro_fibre: 0,
+        reorder_macro_fibre: 0,
+        reorder_water_reducer: 0,
+        reorder_hardener: 0,
     },
     settings: {
         business_name: '',
@@ -57,6 +88,8 @@ const state = {
     inventory: {
         pavers_produced_today: 0,
         linked_to_calculator: true,
+        always_show_purchase: false,
+        purchase_qtys: {},
         target_additional_pavers: 0,
         stock: {
             portland_bags: 0,
@@ -224,7 +257,38 @@ const elements = {
     priceWaterReducer: document.getElementById('price-water-reducer'),
     priceHardener: document.getElementById('price-hardener'),
     btnResetPrices: document.getElementById('btn-reset-prices'),
-    
+    // Purchase qty inputs
+    pqtyPortland: document.getElementById('pqty-portland'),
+    pqtyWhite: document.getElementById('pqty-white'),
+    pqtySand: document.getElementById('pqty-sand'),
+    pqtyStoneDust: document.getElementById('pqty-stone-dust'),
+    pqtyGcc400: document.getElementById('pqty-gcc400'),
+    pqtyRegularGravel: document.getElementById('pqty-regular-gravel'),
+    pqtyChipGravel: document.getElementById('pqty-chip-gravel'),
+    pqtyWhiteGravel: document.getElementById('pqty-white-gravel'),
+    pqtyWhiteLime: document.getElementById('pqty-white-lime'),
+    pqtyMicroFibre: document.getElementById('pqty-micro-fibre'),
+    pqtyMacroFibre: document.getElementById('pqty-macro-fibre'),
+    pqtyWaterReducer: document.getElementById('pqty-water-reducer'),
+    pqtyHardener: document.getElementById('pqty-hardener'),
+    pqtyWater: document.getElementById('pqty-water'),
+    toggleWaterUnlimited: document.getElementById('toggle-water-unlimited'),
+    waterPurchaseFields: document.getElementById('water-purchase-fields'),
+    // Reorder point inputs
+    reorderPortland: document.getElementById('reorder-portland'),
+    reorderWhite: document.getElementById('reorder-white'),
+    reorderSand: document.getElementById('reorder-sand'),
+    reorderStoneDust: document.getElementById('reorder-stone-dust'),
+    reorderGcc400: document.getElementById('reorder-gcc400'),
+    reorderRegularGravel: document.getElementById('reorder-regular-gravel'),
+    reorderChipGravel: document.getElementById('reorder-chip-gravel'),
+    reorderWhiteGravel: document.getElementById('reorder-white-gravel'),
+    reorderWhiteLime: document.getElementById('reorder-white-lime'),
+    reorderMicroFibre: document.getElementById('reorder-micro-fibre'),
+    reorderMacroFibre: document.getElementById('reorder-macro-fibre'),
+    reorderWaterReducer: document.getElementById('reorder-water-reducer'),
+    reorderHardener: document.getElementById('reorder-hardener'),
+
     // Loading
     loadingOverlay: document.getElementById('loading-overlay'),
 };
@@ -239,6 +303,9 @@ const formatNum = (num, decimals = 1) => {
     if (num === undefined || num === null || isNaN(num)) return '0';
     return num.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 };
+
+// HTML escape helper (D1)
+const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 // Toast notification function
 const showToast = (message) => {
@@ -619,20 +686,31 @@ const wireMixSectionEvents = (i) => {
     const delBtn = gEl(`mix-del-${i}`);
     if (delBtn) {
         let confirmTimer = null;
+        let outsideListener = null;
+        const cancelDelConfirm = () => {
+            clearTimeout(confirmTimer);
+            delBtn.classList.remove('confirm');
+            delBtn.textContent = 'Delete';
+            if (outsideListener) {
+                document.removeEventListener('click', outsideListener, true);
+                outsideListener = null;
+            }
+        };
         delBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             if (delBtn.classList.contains('confirm')) {
-                clearTimeout(confirmTimer);
+                cancelDelConfirm();
                 deleteMix(i);
                 renderMixSections();
                 renderMixSelector();
             } else {
                 delBtn.classList.add('confirm');
                 delBtn.textContent = 'Confirm?';
-                confirmTimer = setTimeout(() => {
-                    delBtn.classList.remove('confirm');
-                    delBtn.textContent = 'Delete';
-                }, 3000);
+                confirmTimer = setTimeout(cancelDelConfirm, 3000);
+                outsideListener = (ev) => {
+                    if (!delBtn.contains(ev.target)) cancelDelConfirm();
+                };
+                document.addEventListener('click', outsideListener, true);
             }
         });
     }
@@ -804,6 +882,26 @@ const renderMixSections = () => {
 
 // Event handlers
 const setupEventListeners = () => {
+    // Header stock status tap
+    const stockStatusEl = document.getElementById('header-stock-status');
+    if (stockStatusEl) {
+        const goToStock = () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            const invBtn = document.querySelector('[data-tab="inventory"]');
+            if (invBtn) invBtn.classList.add('active');
+            const invTab = document.getElementById('tab-inventory');
+            if (invTab) invTab.classList.add('active');
+            const key = stockStatusEl._stockTarget;
+            if (key) {
+                const target = document.querySelector(`[data-inv-key="${key}"]`);
+                if (target) setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+            }
+        };
+        stockStatusEl.addEventListener('click', goToStock);
+        stockStatusEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') goToStock(); });
+    }
+
     // Project inputs
     const projectNameEl = document.getElementById('project-name');
     if (projectNameEl) projectNameEl.addEventListener('input', (e) => {
@@ -816,7 +914,11 @@ const setupEventListeners = () => {
     elements.projectWidth.addEventListener('input', (e) => updateState('project.width', parseFloat(e.target.value) || 0));
     elements.projectThickness.addEventListener('input', (e) => updateState('project.thickness', parseFloat(e.target.value) || 0));
     elements.projectQuantity.addEventListener('input', (e) => updateState('project.quantity', parseFloat(e.target.value) || 0));
-    elements.projectWaste.addEventListener('input', (e) => updateState('project.waste_factor', parseFloat(e.target.value) || 0));
+    elements.projectWaste.addEventListener('input', (e) => {
+        const v = Math.min(2, Math.max(1, parseFloat(e.target.value) || 1));
+        e.target.value = v;
+        updateState('project.waste_factor', v);
+    });
     elements.projectPaversPerDay.addEventListener('input', (e) => updateState('project.pavers_per_day', parseFloat(e.target.value) || 0));
     elements.projectWorkers.addEventListener('input', (e) => updateState('project.workers', Math.max(1, parseInt(e.target.value) || 1)));
     elements.projectWageRate.addEventListener('input', (e) => updateState('project.wage_rate', parseFloat(e.target.value) || 0));
@@ -848,7 +950,65 @@ const setupEventListeners = () => {
     elements.priceMacroFibre.addEventListener('input', (e) => updateState('prices.macro_fibre', parseFloat(e.target.value) || 0));
     elements.priceWaterReducer.addEventListener('input', (e) => updateState('prices.water_reducer', parseFloat(e.target.value) || 0));
     elements.priceHardener.addEventListener('input', (e) => updateState('prices.hardener', parseFloat(e.target.value) || 0));
-    
+
+    // Purchase qty listeners
+    const pqtyPairs = [
+        [elements.pqtyPortland,      'prices.portland_pqty'],
+        [elements.pqtyWhite,         'prices.white_pqty'],
+        [elements.pqtySand,          'prices.sand_pqty'],
+        [elements.pqtyStoneDust,     'prices.stone_dust_pqty'],
+        [elements.pqtyGcc400,        'prices.gcc400_pqty'],
+        [elements.pqtyRegularGravel, 'prices.regular_gravel_pqty'],
+        [elements.pqtyChipGravel,    'prices.chip_gravel_pqty'],
+        [elements.pqtyWhiteGravel,   'prices.white_gravel_pqty'],
+        [elements.pqtyWhiteLime,     'prices.white_lime_pqty'],
+        [elements.pqtyMicroFibre,    'prices.micro_fibre_pqty'],
+        [elements.pqtyMacroFibre,    'prices.macro_fibre_pqty'],
+        [elements.pqtyWaterReducer,  'prices.water_reducer_pqty'],
+        [elements.pqtyHardener,      'prices.hardener_pqty'],
+        [elements.pqtyWater,         'prices.water_pqty'],
+    ];
+    pqtyPairs.forEach(([el, key]) => {
+        if (el) el.addEventListener('input', (e) => updateState(key, parseFloat(e.target.value) || 1));
+    });
+
+    // Reorder point listeners
+    const reorderPairs = [
+        [elements.reorderPortland, 'prices.reorder_portland'],
+        [elements.reorderWhite, 'prices.reorder_white'],
+        [elements.reorderSand, 'prices.reorder_sand'],
+        [elements.reorderStoneDust, 'prices.reorder_stone_dust'],
+        [elements.reorderGcc400, 'prices.reorder_gcc400'],
+        [elements.reorderRegularGravel, 'prices.reorder_regular_gravel'],
+        [elements.reorderChipGravel, 'prices.reorder_chip_gravel'],
+        [elements.reorderWhiteGravel, 'prices.reorder_white_gravel'],
+        [elements.reorderWhiteLime, 'prices.reorder_white_lime'],
+        [elements.reorderMicroFibre, 'prices.reorder_micro_fibre'],
+        [elements.reorderMacroFibre, 'prices.reorder_macro_fibre'],
+        [elements.reorderWaterReducer, 'prices.reorder_water_reducer'],
+        [elements.reorderHardener, 'prices.reorder_hardener'],
+    ];
+    reorderPairs.forEach(([el, key]) => {
+        if (el) el.addEventListener('input', (e) => updateState(key, parseFloat(e.target.value) || 0));
+    });
+
+    // Water unlimited toggle
+    const applyWaterUnlimited = (val) => {
+        state.prices.water_unlimited = val;
+        if (elements.toggleWaterUnlimited) {
+            elements.toggleWaterUnlimited.setAttribute('aria-checked', String(val));
+            elements.toggleWaterUnlimited.classList.toggle('active', val);
+            const sl = elements.toggleWaterUnlimited.querySelector('.toggle-slider');
+            if (sl) sl.style.transform = val ? 'translateX(20px)' : 'translateX(0)';
+        }
+        if (elements.waterPurchaseFields) elements.waterPurchaseFields.style.display = val ? 'none' : 'block';
+        saveState();
+        renderInventoryUI();
+    };
+    if (elements.toggleWaterUnlimited) {
+        elements.toggleWaterUnlimited.addEventListener('click', () => applyWaterUnlimited(!state.prices.water_unlimited));
+    }
+
     // Business identity + tax inputs
     const bizFields = ['biz-name', 'biz-address', 'biz-phone', 'biz-email', 'biz-tax-id'];
     const bizKeys   = ['business_name', 'business_address', 'business_phone', 'business_email', 'business_tax_id'];
@@ -859,26 +1019,65 @@ const setupEventListeners = () => {
     const taxRateEl = document.getElementById('tax-rate');
     if (taxRateEl) taxRateEl.addEventListener('input', () => { state.settings.tax_rate = parseFloat(taxRateEl.value) || 0; saveState(); });
 
-    elements.btnResetPrices.addEventListener('click', () => {
-        state.prices = {
-            portland_bag: 1750,
-            white_bag: 3810,
-            sand: 5000,
-            regular_gravel: 4000,
-            chip_gravel: 4000,
-            white_gravel: 1600,
-            stone_dust: 1800,
-            gcc400: 17891,
-            white_lime: 55,
-            micro_fibre: 1622.6,
-            macro_fibre: 2200,
-            water_reducer: 1378.34,
-            hardener: 0,
+    {
+        let resetConfirmTimer = null;
+        let resetOutsideListener = null;
+        const cancelResetConfirm = () => {
+            clearTimeout(resetConfirmTimer);
+            elements.btnResetPrices.innerHTML = '<span class="icon" id="icon-reset"></span> Reset to Default Prices';
+            elements.btnResetPrices.removeAttribute('data-confirm');
+            if (resetOutsideListener) {
+                document.removeEventListener('click', resetOutsideListener, true);
+                resetOutsideListener = null;
+            }
         };
-        updatePricesUI();
-        calculate();
-        saveState();
-    });
+        elements.btnResetPrices.addEventListener('click', () => {
+            if (elements.btnResetPrices.dataset.confirm === '1') {
+                cancelResetConfirm();
+                state.prices = {
+                    portland_bag: 1750,
+                    white_bag: 3810,
+                    sand: 5000,
+                    regular_gravel: 4000,
+                    chip_gravel: 4000,
+                    white_gravel: 1600,
+                    stone_dust: 1800,
+                    gcc400: 17891,
+                    white_lime: 55,
+                    micro_fibre: 1622.6,
+                    macro_fibre: 2200,
+                    water_reducer: 1378.34,
+                    hardener: 0,
+                    portland_pqty: 1,
+                    white_pqty: 1,
+                    sand_pqty: 1,
+                    stone_dust_pqty: 1,
+                    gcc400_pqty: 1,
+                    regular_gravel_pqty: 1,
+                    chip_gravel_pqty: 1,
+                    white_gravel_pqty: 1,
+                    white_lime_pqty: 1,
+                    micro_fibre_pqty: 1,
+                    macro_fibre_pqty: 1,
+                    water_reducer_pqty: 1,
+                    hardener_pqty: 1,
+                    water_pqty: 1000,
+                    water_unlimited: true,
+                };
+                updatePricesUI();
+                calculate();
+                saveState();
+            } else {
+                elements.btnResetPrices.dataset.confirm = '1';
+                elements.btnResetPrices.textContent = 'Confirm reset?';
+                resetConfirmTimer = setTimeout(cancelResetConfirm, 3000);
+                resetOutsideListener = (ev) => {
+                    if (!elements.btnResetPrices.contains(ev.target)) cancelResetConfirm();
+                };
+                document.addEventListener('click', resetOutsideListener, true);
+            }
+        });
+    }
 
     // Controls
     elements.toggleNoCosts.addEventListener('click', () => {
@@ -908,6 +1107,49 @@ const setupEventListeners = () => {
     if (btnResetAll) btnResetAll.addEventListener('click', () => {
         localStorage.removeItem(STATE_KEY);
         location.reload();
+    });
+
+    // C1: Export backup
+    const btnExport = document.getElementById('btn-export-data');
+    if (btnExport) btnExport.addEventListener('click', () => {
+        const backup = {
+            _version: 2,
+            state: JSON.parse(localStorage.getItem(STATE_KEY) || 'null'),
+            inventory: JSON.parse(localStorage.getItem(INVENTORY_KEY) || 'null'),
+        };
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const d = new Date();
+        a.download = `sprat-backup-${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+
+    // C1: Import backup
+    const btnImport = document.getElementById('btn-import-data');
+    if (btnImport) btnImport.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const data = JSON.parse(ev.target.result);
+                if (!data._version || !data.state || !data.state.prices || !data.state.project) {
+                    showToast('Invalid backup file');
+                    return;
+                }
+                if (data.state) localStorage.setItem(STATE_KEY, JSON.stringify(data.state));
+                if (data.inventory) localStorage.setItem(INVENTORY_KEY, JSON.stringify(data.inventory));
+                showToast('Backup restored — reloading…');
+                setTimeout(() => location.reload(), 1200);
+            } catch (_) {
+                showToast('Could not read backup file');
+            }
+        };
+        reader.readAsText(file);
+        btnImport.value = '';
     });
 
     const btnSaveRecipe = document.getElementById('btn-save-recipe');
@@ -952,6 +1194,24 @@ const setupEventListeners = () => {
         });
     }
 
+    const alwaysPurchaseToggle = document.getElementById('toggle-always-purchase');
+    if (alwaysPurchaseToggle) {
+        alwaysPurchaseToggle.addEventListener('click', () => {
+            state.inventory.always_show_purchase = !state.inventory.always_show_purchase;
+            alwaysPurchaseToggle.setAttribute('aria-checked', String(state.inventory.always_show_purchase));
+            alwaysPurchaseToggle.classList.toggle('active', state.inventory.always_show_purchase);
+            alwaysPurchaseToggle.querySelector('.toggle-slider').style.transform =
+                state.inventory.always_show_purchase ? 'translateX(20px)' : 'translateX(0)';
+            saveInventory();
+            updateInventoryValues(calculateInventory());
+        });
+        // Sync visual state from loaded value
+        alwaysPurchaseToggle.setAttribute('aria-checked', String(state.inventory.always_show_purchase));
+        alwaysPurchaseToggle.classList.toggle('active', state.inventory.always_show_purchase);
+        const apSlider = alwaysPurchaseToggle.querySelector('.toggle-slider');
+        if (apSlider) apSlider.style.transform = state.inventory.always_show_purchase ? 'translateX(20px)' : 'translateX(0)';
+    }
+
     const clearTodayEl = document.getElementById('btn-clear-today');
     if (clearTodayEl) {
         clearTodayEl.addEventListener('click', () => {
@@ -965,8 +1225,10 @@ const setupEventListeners = () => {
 
     const targetEl = document.getElementById('target-additional-pavers');
     if (targetEl) {
+        targetEl.value = state.inventory.target_additional_pavers || 0;
         targetEl.addEventListener('input', (e) => {
             state.inventory.target_additional_pavers = parseFloat(e.target.value) || 0;
+            saveInventory();
         });
     }
 
@@ -990,12 +1252,36 @@ const updatePricesUI = () => {
     elements.priceMacroFibre.value = state.prices.macro_fibre;
     elements.priceWaterReducer.value = state.prices.water_reducer;
     elements.priceHardener.value = state.prices.hardener;
-};
-
-// Calculation and display functions
-const calculate = async () => {
-    try {
-        const mix = getActiveMix();
+    // Purchase qtys
+    if (elements.pqtyPortland) elements.pqtyPortland.value = state.prices.portland_pqty;
+    if (elements.pqtyWhite) elements.pqtyWhite.value = state.prices.white_pqty;
+    if (elements.pqtySand) elements.pqtySand.value = state.prices.sand_pqty;
+    if (elements.pqtyStoneDust) elements.pqtyStoneDust.value = state.prices.stone_dust_pqty;
+    if (elements.pqtyGcc400) elements.pqtyGcc400.value = state.prices.gcc400_pqty;
+    if (elements.pqtyRegularGravel) elements.pqtyRegularGravel.value = state.prices.regular_gravel_pqty;
+    if (elements.pqtyChipGravel) elements.pqtyChipGravel.value = state.prices.chip_gravel_pqty;
+    if (elements.pqtyWhiteGravel) elements.pqtyWhiteGravel.value = state.prices.white_gravel_pqty;
+    if (elements.pqtyWhiteLime) elements.pqtyWhiteLime.value = state.prices.white_lime_pqty;
+    if (elements.pqtyMicroFibre) elements.pqtyMicroFibre.value = state.prices.micro_fibre_pqty;
+    if (elements.pqtyMacroFibre) elements.pqtyMacroFibre.value = state.prices.macro_fibre_pqty;
+    if (elements.pqtyWaterReducer) elements.pqtyWaterReducer.value = state.prices.water_reducer_pqty;
+    if (elements.pqtyHardener) elements.pqtyHardener.value = state.prices.hardener_pqty;
+    if (elements.pqtyWater) elements.pqtyWater.value = state.prices.water_pqty;
+    // Reorder points
+    if (elements.reorderPortland) elements.reorderPortland.value = state.prices.reorder_portland;
+    if (elements.reorderWhite) elements.reorderWhite.value = state.prices.reorder_white;
+    if (elements.reorderSand) elements.reorderSand.value = state.prices.reorder_sand;
+    if (elements.reorderStoneDust) elements.reorderStoneDust.value = state.prices.reorder_stone_dust;
+    if (elements.reorderGcc400) elements.reorderGcc400.value = state.prices.reorder_gcc400;
+    if (elements.reorderRegularGravel) elements.reorderRegularGravel.value = state.prices.reorder_regular_gravel;
+    if (elements.reorderChipGravel) elements.reorderChipGravel.value = state.prices.reorder_chip_gravel;
+    if (elements.reorderWhiteGravel) elements.reorderWhiteGravel.value = state.prices.reorder_white_gravel;
+    if (elements.reorderWhiteLime) elements.reorderWhiteLime.value = state.prices.reorder_white_lime;
+    if (elements.reorderMicroFibre) elements.reorderMicroFibre.value = state.prices.reorder_micro_fibre;
+    if (elements.reorderMacroFibre) elements.reorderMacroFibre.value = state.prices.reorder_macro_fibre;
+    if (elements.reorderWaterReducer) elements.reorderWaterReducer.value = state.prices.reorder_water_reducer;
+    if (elements.reorderHardener) elements.reorderHardener.value = state.prices.reorder_hardener;
+    // Water unlimited toggle state
         const input = {
             project: { ...state.project, wage_rate: state.project.wage_rate * (state.project.workers || 1) },
             mix_parts: mix.mix_parts,
@@ -1527,7 +1813,10 @@ const saveInventory = () => {
     try {
         localStorage.setItem(INVENTORY_KEY, JSON.stringify({
             linked_to_calculator: state.inventory.linked_to_calculator,
+            always_show_purchase: state.inventory.always_show_purchase,
             stock: state.inventory.stock,
+            purchase_qtys: state.inventory.purchase_qtys,
+            target_additional_pavers: state.inventory.target_additional_pavers,
             pavers_produced_today: state.inventory.pavers_produced_today,
             production_date: new Date().toISOString().split('T')[0],
         }));
@@ -1542,12 +1831,21 @@ const loadInventory = () => {
         if (typeof data.linked_to_calculator === 'boolean') {
             state.inventory.linked_to_calculator = data.linked_to_calculator;
         }
+        if (typeof data.always_show_purchase === 'boolean') {
+            state.inventory.always_show_purchase = data.always_show_purchase;
+        }
         if (data.stock && typeof data.stock === 'object') {
             Object.keys(state.inventory.stock).forEach(k => {
                 if (typeof data.stock[k] === 'number') {
                     state.inventory.stock[k] = data.stock[k];
                 }
             });
+        }
+        if (data.purchase_qtys && typeof data.purchase_qtys === 'object') {
+            state.inventory.purchase_qtys = data.purchase_qtys;
+        }
+        if (typeof data.target_additional_pavers === 'number') {
+            state.inventory.target_additional_pavers = data.target_additional_pavers;
         }
         // Restore today's production count — reset if saved on a different date
         const today = new Date().toISOString().split('T')[0];
@@ -1582,6 +1880,29 @@ const getStockPrice = (stockKey) => {
         case 'pigment2_l':        return getPigmentPrice(mix.pigments.pigment2_name);
         default:                  return 0;
     }
+};
+
+// Map stock keys to reorder point keys in state.prices
+const getReorderPoint = (stockKey) => {
+    const p = state.prices;
+    const keyMap = {
+        'portland_bags': p.reorder_portland,
+        'white_bags': p.reorder_white,
+        'sand_yd3': p.reorder_sand,
+        'stone_dust_b_yd3': p.reorder_stone_dust,
+        'gcc400_b_yd3': p.reorder_gcc400,
+        'regular_gravel_yd3': p.reorder_regular_gravel,
+        'chip_gravel_yd3': p.reorder_chip_gravel,
+        'white_gravel_yd3': p.reorder_white_gravel,
+        'white_lime_yd3': p.reorder_white_lime,
+        'stone_dust_c_yd3': p.reorder_stone_dust,
+        'gcc400_c_yd3': p.reorder_gcc400,
+        'micro_fibre_kg': p.reorder_micro_fibre,
+        'macro_fibre_kg': p.reorder_macro_fibre,
+        'water_reducer_kg': p.reorder_water_reducer,
+        'hardener_kg': p.reorder_hardener,
+    };
+    return keyMap[stockKey] || 0;
 };
 
 // Round purchase order quantities to purchasable units
@@ -1711,6 +2032,81 @@ const formatInventoryValue = (val, stockKey) => {
     return val.toFixed(3);
 };
 
+const minPurchaseUnit = (stockKey) => {
+    if (stockKey.includes('_bags')) return 1;
+    if (stockKey.includes('_yd3')) return 0.25;
+    return 0.1;
+};
+
+const qtyDecimals = (stockKey) => {
+    if (stockKey.includes('_bags')) return 0;
+    if (stockKey.includes('_yd3')) return 2;
+    return 1;
+};
+
+const roundPurchaseUnit = (qty, stockKey) => {
+    if (stockKey.includes('_bags')) return Math.ceil(qty);
+    if (stockKey.includes('_yd3')) return Math.ceil(qty * 4) / 4;
+    return Math.ceil(qty * 10) / 10;
+};
+
+const stockKeyToPqty = {
+    portland_bags: 'portland_pqty', white_bags: 'white_pqty',
+    sand_yd3: 'sand_pqty', stone_dust_b_yd3: 'stone_dust_pqty', gcc400_b_yd3: 'gcc400_pqty',
+    stone_dust_c_yd3: 'stone_dust_pqty', gcc400_c_yd3: 'gcc400_pqty',
+    regular_gravel_yd3: 'regular_gravel_pqty', chip_gravel_yd3: 'chip_gravel_pqty',
+    white_gravel_yd3: 'white_gravel_pqty', white_lime_yd3: 'white_lime_pqty',
+    micro_fibre_kg: 'micro_fibre_pqty', macro_fibre_kg: 'macro_fibre_pqty',
+    water_reducer_kg: 'water_reducer_pqty', hardener_kg: 'hardener_pqty',
+    pigment1_l: 'water_pqty', pigment2_l: 'water_pqty', water_l: 'water_pqty',
+};
+
+const getPurchaseUnitSize = (stockKey) => {
+    const pkey = stockKeyToPqty[stockKey];
+    if (pkey && state.prices[pkey]) return state.prices[pkey];
+    return minPurchaseUnit(stockKey);
+};
+
+const calcShortfall = (m) => {
+    const deficit = m.remaining < 0 ? -m.remaining : 0;
+    const rounded = roundPurchaseUnit(deficit, m.stockKey);
+    return Math.max(rounded, getPurchaseUnitSize(m.stockKey));
+};
+
+const updatePurchaseRow = (m) => {
+    const pillEl = document.getElementById(`inv-purchase-pill-${m.key}`);
+    if (!pillEl) return;
+    // Water unlimited — always hide
+    if (m.stockKey === 'water_l' && state.prices.water_unlimited !== false) {
+        pillEl.style.display = 'none';
+        return;
+    }
+    const isDepleted = m.daysRemaining !== undefined && (m.stock <= 0 || m.remaining <= 0);
+    const isLow = m.daysRemaining !== undefined && m.daysRemaining !== null && m.daysRemaining > 0 && m.daysRemaining <= 2;
+    const alwaysShow = state.inventory.always_show_purchase;
+    const show = alwaysShow || isDepleted || isLow;
+    pillEl.style.display = show ? '' : 'none';
+    pillEl.classList.remove('purchase-glow-low', 'purchase-glow-empty');
+    if (alwaysShow && isDepleted) pillEl.classList.add('purchase-glow-empty');
+    else if (alwaysShow && isLow) pillEl.classList.add('purchase-glow-low');
+    if (show && state.inventory.purchase_qtys[m.key] === undefined) {
+        state.inventory.purchase_qtys[m.key] = calcShortfall(m);
+        const qtyEl = document.getElementById(`inv-purchase-qty-${m.key}`);
+        if (qtyEl) qtyEl.textContent = state.inventory.purchase_qtys[m.key].toFixed(qtyDecimals(m.stockKey));
+    }
+    // Days gained from purchasing
+    const daysEl = document.getElementById(`inv-purchase-days-${m.key}`);
+    if (daysEl) {
+        const pqty = state.inventory.purchase_qtys[m.key] || 0;
+        if (show && pqty > 0 && m.dailyUsage > 0) {
+            const daysGained = pqty / m.dailyUsage;
+            daysEl.textContent = `+${daysGained.toFixed(1)}d`;
+        } else {
+            daysEl.textContent = '';
+        }
+    }
+};
+
 let _inventoryMaterialKeys = '';
 
 const buildInventorySummary = (materials) => {
@@ -1718,19 +2114,19 @@ const buildInventorySummary = (materials) => {
     if (!linked) return null;
 
     const fmtC = v => 'JMD ' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const actionable = materials.filter(m => m.linked && isActionable(m.stockKey) && m.stock > 0);
-    if (actionable.length === 0) return null;
+    const actionable = materials.filter(m => m.linked && isActionable(m.stockKey));
 
-    // Bottleneck: material with fewest days remaining (exclude depleted/null)
-    const withDays = actionable.filter(m => m.daysRemaining !== null && m.remaining > 0);
-    let bottleneck = null;
-    let minDays = null;
-    withDays.forEach(m => {
-        if (minDays === null || m.daysRemaining < minDays) {
-            minDays = m.daysRemaining;
-            bottleneck = m;
-        }
-    });
+    // All limiting materials sorted by days remaining (depleted first, then ascending)
+    const limitingMaterials = actionable
+        .filter(m => m.daysRemaining !== undefined)
+        .map(m => ({
+            name: m.name,
+            daysRemaining: (m.stock <= 0 || m.remaining <= 0) ? 0 : (m.daysRemaining || 0),
+            isDepleted: m.stock <= 0 || m.remaining <= 0,
+        }))
+        .sort((a, b) => a.daysRemaining - b.daysRemaining);
+
+    const minDays = limitingMaterials.length > 0 ? limitingMaterials[0].daysRemaining : null;
 
     // Daily material cost at current production rate
     const ppd = state.project.pavers_per_day;
@@ -1743,7 +2139,7 @@ const buildInventorySummary = (materials) => {
         .filter(m => m.stock > 0)
         .reduce((sum, m) => sum + m.stock * getStockPrice(m.stockKey), 0);
 
-    return { bottleneck, minDays, dailyCost, restockCost, fmtC };
+    return { limitingMaterials, minDays, dailyCost, restockCost, fmtC };
 };
 
 const renderSummaryCard = (materials) => {
@@ -1754,12 +2150,24 @@ const renderSummaryCard = (materials) => {
     if (!summary) { el.style.display = 'none'; return; }
     el.style.display = 'block';
 
-    const { bottleneck, minDays, dailyCost, restockCost, fmtC } = summary;
+    const { limitingMaterials, minDays, dailyCost, restockCost, fmtC } = summary;
 
-    const runwayHtml = bottleneck
-        ? `<div class="result-row"><span class="result-label">Production Runway</span><span class="result-value" style="font-weight:700;">${minDays.toFixed(1)} days</span></div>
-           <div class="result-row"><span class="result-label">Limited By</span><span class="result-value">${bottleneck.name}</span></div>`
-        : `<div class="result-row"><span class="result-label">Production Runway</span><span class="result-value" style="color:var(--text-secondary);">—</span></div>`;
+    let runwayHtml;
+    if (limitingMaterials.length === 0) {
+        runwayHtml = `<div class="result-row"><span class="result-label">Production Runway</span><span class="result-value" style="color:var(--text-secondary);">—</span></div>`;
+    } else {
+        const runwayVal = minDays !== null ? `${minDays.toFixed(1)} days` : '—';
+        const limitedByHtml = limitingMaterials.map(m => {
+            const daysText = m.isDepleted ? 'DEPLETED' : `${m.daysRemaining.toFixed(1)}d`;
+            const style = m.isDepleted || m.daysRemaining <= 2
+                ? 'color:var(--error-color);font-weight:600;'
+                : 'color:var(--text-secondary);';
+            return `<div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="font-size:0.82rem;">${m.name}</span><span style="font-size:0.82rem;${style}">${daysText}</span></div>`;
+        }).join('');
+
+        runwayHtml = `<div class="result-row"><span class="result-label">Production Runway</span><span class="result-value" style="font-weight:700;">${runwayVal}</span></div>
+            <div style="margin:6px 0 8px;"><div class="result-label" style="margin-bottom:4px;">Limited By</div>${limitedByHtml}</div>`;
+    }
 
     el.innerHTML = `
         <h2 class="card-title">Stock Summary</h2>
@@ -1817,14 +2225,24 @@ const renderInventoryUI = (materials) => {
             const unit = getUnitLabel(m.stockKey);
             html += `<div class="inventory-item" data-inv-key="${m.key}">`;
             html += `<div class="inventory-item-header">`;
-            html += `<span class="inventory-item-name">${m.name}</span>`;
+            html += `<span class="inventory-item-name">${esc(m.name)}</span>`;
+            if (linked) {
+                html += `<div class="inv-purchase-pill" id="inv-purchase-pill-${m.key}" style="display:none;">`;
+                html += `<span class="inv-purchase-label">Purchase</span>`;
+                html += `<button class="inv-purchase-btn inv-purchase-dec" data-key="${m.key}">−</button>`;
+                html += `<span class="inv-purchase-qty" id="inv-purchase-qty-${m.key}">0</span>`;
+                html += `<span class="inv-purchase-unit">${esc(unit)}</span>`;
+                html += `<button class="inv-purchase-btn inv-purchase-inc" data-key="${m.key}">+</button>`;
+                html += `<span class="inv-purchase-days" id="inv-purchase-days-${m.key}"></span>`;
+                html += `</div>`;
+            }
             html += `<span class="inventory-status" id="inv-status-${m.key}">--</span>`;
             html += `</div>`;
             html += `<div class="input-group" style="margin-bottom:8px;">`;
             html += `<label class="input-label">Stock on Hand</label>`;
             html += `<div class="input-row">`;
             html += `<input type="number" id="inv-stock-${m.key}" class="input-number" value="${m.stock}" min="0" step="0.1" data-stock-key="${m.stockKey}">`;
-            html += `<span class="input-unit">${unit}</span>`;
+            html += `<span class="input-unit">${esc(unit)}</span>`;
             html += `</div></div>`;
 
             if (linked) {
@@ -1855,6 +2273,23 @@ const renderInventoryUI = (materials) => {
         });
     });
 
+    // Wire purchase +/- buttons
+    container.querySelectorAll('.inv-purchase-dec, .inv-purchase-inc').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const key = btn.dataset.key;
+            const m = materials.find(x => x.key === key);
+            if (!m) return;
+            const step = getPurchaseUnitSize(m.stockKey);
+            if (state.inventory.purchase_qtys[key] === undefined) state.inventory.purchase_qtys[key] = calcShortfall(m);
+            state.inventory.purchase_qtys[key] = btn.classList.contains('inv-purchase-inc')
+                ? state.inventory.purchase_qtys[key] + step
+                : Math.max(0, state.inventory.purchase_qtys[key] - step);
+            const qtyEl = document.getElementById(`inv-purchase-qty-${key}`);
+            if (qtyEl) qtyEl.textContent = state.inventory.purchase_qtys[key].toFixed(qtyDecimals(m.stockKey));
+            saveInventory();
+        });
+    });
+
     updateInventoryValues(materials);
 };
 
@@ -1881,16 +2316,22 @@ const updateInventoryValues = (materials) => {
         if (remEl) remEl.textContent = formatInventoryValue(m.remaining, m.stockKey);
         if (remRowEl) remRowEl.className = m.remaining < 0 ? 'result-row inventory-negative' : 'result-row';
 
+        const reorderPoint = getReorderPoint(m.stockKey);
+        const isBelowReorder = reorderPoint > 0 && m.stock < reorderPoint;
+        
         if (m.stock <= 0) {
             statusEl.textContent = 'NO STOCK';
             statusEl.className = 'inventory-status inventory-status-empty';
-        } else if (m.daysRemaining === null) {
-            statusEl.textContent = 'N/A';
-            statusEl.className = 'inventory-status';
         } else if (m.remaining <= 0) {
             statusEl.textContent = 'DEPLETED';
             statusEl.className = 'inventory-status inventory-status-empty';
             if (daysEl) daysEl.textContent = '0d';
+        } else if (isBelowReorder) {
+            statusEl.textContent = 'REORDER';
+            statusEl.className = 'inventory-status inventory-status-reorder';
+        } else if (m.daysRemaining === null) {
+            statusEl.textContent = 'N/A';
+            statusEl.className = 'inventory-status';
         } else if (m.daysRemaining > 2) {
             statusEl.textContent = `${m.daysRemaining.toFixed(1)}d`;
             statusEl.className = 'inventory-status inventory-status-ok';
@@ -1901,6 +2342,36 @@ const updateInventoryValues = (materials) => {
             if (daysEl) daysEl.textContent = `${m.daysRemaining.toFixed(1)}d`;
         }
     });
+
+    materials.forEach(updatePurchaseRow);
+
+    // Header stock status
+    const stockStatusEl = document.getElementById('header-stock-status');
+    if (stockStatusEl) {
+        const linked = materials.filter(m => m.daysRemaining !== undefined);
+        const depleted = linked.filter(m => m.stock <= 0 || m.remaining <= 0);
+        const low = linked.filter(m => m.daysRemaining !== null && m.daysRemaining > 0 && m.daysRemaining <= 2);
+        const bottleneck = linked.filter(m => m.daysRemaining !== null && m.remaining > 0)
+            .sort((a, b) => a.daysRemaining - b.daysRemaining)[0] || null;
+        if (depleted.length > 0) {
+            stockStatusEl.textContent = 'DEPLETED';
+            stockStatusEl.className = 'stock-empty';
+            stockStatusEl.style.display = '';
+            stockStatusEl._stockTarget = depleted[0].key;
+        } else if (low.length > 0) {
+            stockStatusEl.textContent = 'LOW STOCK';
+            stockStatusEl.className = 'stock-low';
+            stockStatusEl.style.display = '';
+            stockStatusEl._stockTarget = low[0].key;
+        } else if (bottleneck) {
+            stockStatusEl.textContent = `${bottleneck.daysRemaining.toFixed(1)}d stock`;
+            stockStatusEl.className = 'stock-ok';
+            stockStatusEl.style.display = '';
+            stockStatusEl._stockTarget = bottleneck.key;
+        } else {
+            stockStatusEl.style.display = 'none';
+        }
+    }
 
     renderSummaryCard(materials);
 };
@@ -1923,19 +2394,37 @@ const generatePurchaseOrder = () => {
         })
         .filter(item => item.qty > 0);
 
-    if (orderItems.length === 0) {
+    // Add reorder-flagged materials not already covered by target calculation
+    const reorderItems = materials
+        .filter(m => m.linked && isActionable(m.stockKey))
+        .filter(m => {
+            const reorderPoint = getReorderPoint(m.stockKey);
+            return reorderPoint > 0 && m.stock < reorderPoint;
+        })
+        .filter(m => !orderItems.some(oi => oi.stockKey === m.stockKey))
+        .map(m => {
+            const reorderPoint = getReorderPoint(m.stockKey);
+            const qty = roundToPurchaseUnit(reorderPoint - m.stock, m.stockKey);
+            const unitPrice = getStockPrice(m.stockKey);
+            const cost = qty * unitPrice;
+            return { name: m.name + ' (REORDER)', qty, stockKey: m.stockKey, unitPrice, cost };
+        });
+
+    const allItems = [...orderItems, ...reorderItems];
+
+    if (allItems.length === 0) {
         output.innerHTML = `<div class="purchase-order-empty">Current stock covers ${target} pavers. No materials needed.</div>`;
         return;
     }
 
     if (window.PurchaseOrderEngine) {
-        window.PurchaseOrderEngine.generate(orderItems, state.settings, state.project.project_name, output);
+        window.PurchaseOrderEngine.generate(allItems, state.settings, state.project.project_name, output);
     } else {
         // Minimal fallback if PO engine not loaded
         const fmtC = v => 'JMD ' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const grandTotal = orderItems.reduce((s, i) => s + i.cost, 0);
+        const grandTotal = allItems.reduce((s, i) => s + i.cost, 0);
         let html = `<div class="purchase-order-card"><div class="purchase-order-title">Order for ${target} additional pavers</div>`;
-        orderItems.forEach(item => {
+        allItems.forEach(item => {
             const k = item.stockKey;
             const qStr = k.endsWith('_bags') ? `${item.qty} bags` : k.endsWith('_yd3') ? `${item.qty.toFixed(2)} yd\u00B3` : k.endsWith('_kg') ? `${item.qty.toFixed(1)} kg` : `${item.qty.toFixed(1)}`;
             html += `<div class="purchase-order-item"><span>${item.name}<br><span style="font-size:0.75rem;color:var(--text-secondary);">${qStr}</span></span><span class="purchase-order-qty">${fmtC(item.cost)}</span></div>`;
@@ -2168,9 +2657,6 @@ const syncInputsFromState = () => {
 // Initialize application
 const init = async () => {
     try {
-        // Initialize WASM module
-        await wasmInit();
-
         // Apply theme before paint to prevent flash
         initializeTheme();
 
@@ -2201,6 +2687,9 @@ const init = async () => {
 
         // Pigment selects are now inside dynamic mix sections (built by renderMixSections above).
         // PIGMENT_OPTIONS array in this file provides the option list — no WASM call needed here.
+
+        // Initialize WASM module before first calculation
+        await wasmInit();
 
         // Initial calculation
         await calculate();

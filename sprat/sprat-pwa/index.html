@@ -32,6 +32,7 @@
                         <div class="header-title" id="header-project-name">Concrete Mix Calculator</div>
                         <div class="header-mix" id="header-mix-name">Mix 1</div>
                     </div>
+                    <div id="header-stock-status" role="button" tabindex="0" aria-label="Stock status" style="display:none; cursor:pointer; text-align:center; line-height:1.2; font-size:0.8rem; flex:1; min-width:0;"></div>
                     <div class="header-stats">
                         <div class="header-stat">
                             <span class="header-stat-value" id="header-quantity">--</span>
@@ -95,13 +96,6 @@
                                 <span class="input-unit">ft</span>
                             </div>
                         </div>
-                        <div class="input-group">
-                            <label class="input-label">Thickness</label>
-                            <div class="input-row">
-                                <input type="number" id="project-thickness" class="input-number" value="2" min="0.5" step="0.5">
-                                <span class="input-unit">in</span>
-                            </div>
-                        </div>
                     </div>
                     <div class="input-group">
                         <label class="input-label">Waste/Overage Factor</label>
@@ -121,7 +115,6 @@
                             <input type="number" id="project-quantity" class="input-number" value="10" min="1" step="1">
                             <span class="input-unit">pcs</span>
                         </div>
-                        <div class="input-hint">Total pavers in this production run — sets material quantities and job cost.</div>
                     </div>
                     <div class="input-group">
                         <label class="input-label">Pavers Produced Per Day</label>
@@ -129,7 +122,6 @@
                             <input type="number" id="project-pavers-per-day" class="input-number" value="10" min="1" step="10">
                             <span class="input-unit">pavers/day</span>
                         </div>
-                        <div class="input-hint">Your planned crew output rate — used to calculate labour cost per paver.</div>
                     </div>
                     <div class="input-group">
                         <label class="input-label">Number of Workers</label>
@@ -381,6 +373,12 @@
 
             <!-- Settings Tab -->
             <div id="tab-settings" class="tab-content">
+                <div class="settings-nav">
+                    <a href="#settings-prices">Prices</a>
+                    <a href="#settings-recipes">Recipes</a>
+                    <a href="#settings-business">Business</a>
+                    <a href="#settings-data">Data</a>
+                </div>
                 <!-- App Settings Card -->
                 <div class="card">
                     <h2 class="card-title"><span class="icon" id="icon-settings"></span> App Settings</h2>
@@ -400,7 +398,7 @@
                 </div>
 
                 <!-- Cementitious Materials Prices -->
-                <div class="card">
+                <div class="card" id="settings-prices">
                     <h2 class="card-title"><span class="icon" id="icon-brick"></span> Cementitious Materials</h2>
                     <div class="input-group">
                         <label class="input-label">Portland Cement (per bag)</label>
@@ -410,10 +408,38 @@
                         </div>
                     </div>
                     <div class="input-group">
+                        <label class="input-label">Purchase qty (bags)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-portland" class="input-number" value="1" min="1" step="1">
+                            <span class="input-unit">bags</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Reorder Point (0=disabled)</label>
+                        <div class="input-row">
+                            <input type="number" id="reorder-portland" class="input-number" value="0" min="0" step="0.1">
+                            <span class="input-unit">bags</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
                         <label class="input-label">White Cement (per bag)</label>
                         <div class="input-row">
                             <input type="number" id="price-white" class="input-number" value="3810" min="0" step="10">
                             <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (bags)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-white" class="input-number" value="1" min="1" step="1">
+                            <span class="input-unit">bags</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Reorder Point (0=disabled)</label>
+                        <div class="input-row">
+                            <input type="number" id="reorder-white" class="input-number" value="0" min="0" step="0.1">
+                            <span class="input-unit">bags</span>
                         </div>
                     </div>
                 </div>
@@ -429,6 +455,20 @@
                         </div>
                     </div>
                     <div class="input-group">
+                        <label class="input-label">Purchase qty (yd³)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-sand" class="input-number" value="1" min="0.25" step="0.25">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Reorder Point (0=disabled)</label>
+                        <div class="input-row">
+                            <input type="number" id="reorder-sand" class="input-number" value="0" min="0" step="0.1">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
                         <label class="input-label">Stone Dust</label>
                         <div class="input-row">
                             <input type="number" id="price-stone-dust" class="input-number" value="1800" min="0" step="100">
@@ -436,10 +476,38 @@
                         </div>
                     </div>
                     <div class="input-group">
+                        <label class="input-label">Purchase qty (yd³)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-stone-dust" class="input-number" value="1" min="0.25" step="0.25">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Reorder Point (0=disabled)</label>
+                        <div class="input-row">
+                            <input type="number" id="reorder-stone-dust" class="input-number" value="0" min="0" step="0.1">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
                         <label class="input-label">GCC 400</label>
                         <div class="input-row">
                             <input type="number" id="price-gcc400" class="input-number" value="17891" min="0" step="10">
                             <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (yd³)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-gcc400" class="input-number" value="1" min="0.25" step="0.25">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Reorder Point (0=disabled)</label>
+                        <div class="input-row">
+                            <input type="number" id="reorder-gcc400" class="input-number" value="0" min="0" step="0.1">
+                            <span class="input-unit">yd³</span>
                         </div>
                     </div>
                 </div>
@@ -455,10 +523,38 @@
                         </div>
                     </div>
                     <div class="input-group">
+                        <label class="input-label">Purchase qty (yd³)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-regular-gravel" class="input-number" value="1" min="0.25" step="0.25">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Reorder Point (0=disabled)</label>
+                        <div class="input-row">
+                            <input type="number" id="reorder-regular-gravel" class="input-number" value="0" min="0" step="0.1">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
                         <label class="input-label">Chip Gravel ⅜″</label>
                         <div class="input-row">
                             <input type="number" id="price-chip-gravel" class="input-number" value="4000" min="0" step="100">
                             <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (yd³)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-chip-gravel" class="input-number" value="1" min="0.25" step="0.25">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Reorder Point (0=disabled)</label>
+                        <div class="input-row">
+                            <input type="number" id="reorder-chip-gravel" class="input-number" value="0" min="0" step="0.1">
+                            <span class="input-unit">yd³</span>
                         </div>
                     </div>
                     <div class="input-group">
@@ -469,10 +565,38 @@
                         </div>
                     </div>
                     <div class="input-group">
+                        <label class="input-label">Purchase qty (yd³)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-white-gravel" class="input-number" value="1" min="0.25" step="0.25">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Reorder Point (0=disabled)</label>
+                        <div class="input-row">
+                            <input type="number" id="reorder-white-gravel" class="input-number" value="0" min="0" step="0.1">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
                         <label class="input-label">White Lime</label>
                         <div class="input-row">
                             <input type="number" id="price-white-lime" class="input-number" value="55" min="0" step="10">
                             <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (yd³)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-white-lime" class="input-number" value="1" min="0.25" step="0.25">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Reorder Point (0=disabled)</label>
+                        <div class="input-row">
+                            <input type="number" id="reorder-white-lime" class="input-number" value="0" min="0" step="0.1">
+                            <span class="input-unit">yd³</span>
                         </div>
                     </div>
                 </div>
@@ -488,10 +612,38 @@
                         </div>
                     </div>
                     <div class="input-group">
+                        <label class="input-label">Purchase qty (kg)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-micro-fibre" class="input-number" value="1" min="0.1" step="0.1">
+                            <span class="input-unit">kg</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Reorder Point (0=disabled)</label>
+                        <div class="input-row">
+                            <input type="number" id="reorder-micro-fibre" class="input-number" value="0" min="0" step="0.1">
+                            <span class="input-unit">kg</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
                         <label class="input-label">Macro Fibre</label>
                         <div class="input-row">
                             <input type="number" id="price-macro-fibre" class="input-number" value="2200" min="0" step="10">
                             <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (kg)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-macro-fibre" class="input-number" value="1" min="0.1" step="0.1">
+                            <span class="input-unit">kg</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Reorder Point (0=disabled)</label>
+                        <div class="input-row">
+                            <input type="number" id="reorder-macro-fibre" class="input-number" value="0" min="0" step="0.1">
+                            <span class="input-unit">kg</span>
                         </div>
                     </div>
                     <div class="input-group">
@@ -502,16 +654,71 @@
                         </div>
                     </div>
                     <div class="input-group">
+                        <label class="input-label">Purchase qty (kg)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-water-reducer" class="input-number" value="1" min="0.1" step="0.1">
+                            <span class="input-unit">kg</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Reorder Point (0=disabled)</label>
+                        <div class="input-row">
+                            <input type="number" id="reorder-water-reducer" class="input-number" value="0" min="0" step="0.1">
+                            <span class="input-unit">kg</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
                         <label class="input-label">Hardener</label>
                         <div class="input-row">
                             <input type="number" id="price-hardener" class="input-number" value="0" min="0" step="10">
                             <span class="input-unit">JMD</span>
                         </div>
                     </div>
+                    <div class="input-group">
+                        <label class="input-label">Purchase qty (kg)</label>
+                        <div class="input-row">
+                            <input type="number" id="pqty-hardener" class="input-number" value="1" min="0.1" step="0.1">
+                            <span class="input-unit">kg</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Reorder Point (0=disabled)</label>
+                        <div class="input-row">
+                            <input type="number" id="reorder-hardener" class="input-number" value="0" min="0" step="0.1">
+                            <span class="input-unit">kg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Water -->
+                <div class="card">
+                    <h2 class="card-title">Water</h2>
+                    <div class="toggle-group">
+                        <label class="toggle-label">Unlimited (line supply)</label>
+                        <button id="toggle-water-unlimited" class="toggle-switch" role="switch" aria-checked="true">
+                            <span class="toggle-slider"></span>
+                        </button>
+                    </div>
+                    <div id="water-purchase-fields" style="display:none; margin-top:10px;">
+                        <div class="input-group">
+                            <label class="input-label">Price (per L)</label>
+                            <div class="input-row">
+                                <input type="number" id="price-water" class="input-number" value="0" min="0" step="1">
+                                <span class="input-unit">JMD</span>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Purchase qty</label>
+                            <div class="input-row">
+                                <input type="number" id="pqty-water" class="input-number" value="1000" min="1" step="100">
+                                <span class="input-unit">L</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Recipe Presets Card -->
-                <div class="card">
+                <div class="card" id="settings-recipes">
                     <h2 class="card-title"><span class="icon" id="icon-recipes"></span> Recipe Presets</h2>
                     <div class="input-group">
                         <label class="input-label">Save current mix as a preset</label>
@@ -539,7 +746,7 @@
                 </div>
 
                 <!-- Business Identity Card -->
-                <div class="card">
+                <div class="card" id="settings-business">
                     <h2 class="card-title"><span class="icon" id="icon-business"></span> Business Identity</h2>
                     <p class="help-text" style="margin-bottom:12px;">Printed on Purchase Orders as the "From" party.</p>
                     <div class="input-group">
@@ -597,6 +804,16 @@
                     <div id="sync-status" style="font-size:0.8rem;color:var(--text-secondary);margin-top:8px;">Set Apps Script URL to sync</div>
                 </div>
 
+                <!-- Data Management Card (C1) -->
+                <div class="card" id="settings-data">
+                    <h2 class="card-title">Data Management</h2>
+                    <p class="help-text" style="margin-bottom:12px;">Export all settings, prices, and inventory to a JSON file for backup or transfer to another device.</p>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button id="btn-export-data" class="btn-secondary" style="flex:1;">Export Backup</button>
+                        <label id="btn-import-data-label" class="btn-secondary" style="flex:1;text-align:center;cursor:pointer;display:inline-block;">Import Backup<input type="file" id="btn-import-data" accept=".json" style="display:none;"></label>
+                    </div>
+                </div>
+
                 <!-- Reset Button -->
                 <button id="btn-reset-prices" class="btn-reset">
                     <span class="icon" id="icon-reset"></span> Reset to Default Prices
@@ -619,10 +836,9 @@
                             <input type="number" id="inventory-pavers-today" class="input-number" value="0" min="0" step="1">
                             <span class="input-unit">pavers</span>
                         </div>
-                        <div class="input-hint">Log today's actual output to deduct materials from stock. Does not affect planned costs or pricing.</div>
                     </div>
                     <div class="result-row">
-                        <span class="result-label">Planned Production Rate</span>
+                        <span class="result-label">Daily Production Rate (from Project)</span>
                         <span class="result-value" id="inventory-daily-rate">--</span>
                     </div>
                 </div>
@@ -631,11 +847,17 @@
                 <div class="card">
                     <div class="toggle-group">
                         <label class="toggle-label">Link to Calculator</label>
-                        <button id="toggle-calculator-link" class="toggle-btn" role="switch" aria-checked="true">
+                        <button id="toggle-calculator-link" class="toggle-switch" role="switch" aria-checked="true">
                             <span class="toggle-slider"></span>
                         </button>
                     </div>
                     <p class="help-text" id="inventory-link-hint">Usage and days remaining are calculated from the current mix design.</p>
+                    <div class="toggle-group" style="margin-top:10px;">
+                        <label class="toggle-label">Always Show Purchase</label>
+                        <button id="toggle-always-purchase" class="toggle-switch" role="switch" aria-checked="false">
+                            <span class="toggle-slider"></span>
+                        </button>
+                    </div>
                     <button id="btn-clear-today" class="btn-secondary" style="margin-top:12px;">Clear Today</button>
                 </div>
 
@@ -830,6 +1052,21 @@
                             if (saved.prices.macro_fibre !== undefined)     s.prices.macroFibre    = saved.prices.macro_fibre;
                             if (saved.prices.water_reducer !== undefined)   s.prices.waterReducer  = saved.prices.water_reducer;
                             if (saved.prices.hardener !== undefined)        s.prices.hardener      = saved.prices.hardener;
+                            if (saved.prices.portland_pqty !== undefined)     s.prices.portlandPqty      = saved.prices.portland_pqty;
+                            if (saved.prices.white_pqty !== undefined)        s.prices.whitePqty         = saved.prices.white_pqty;
+                            if (saved.prices.sand_pqty !== undefined)         s.prices.sandPqty          = saved.prices.sand_pqty;
+                            if (saved.prices.stone_dust_pqty !== undefined)   s.prices.stoneDustPqty     = saved.prices.stone_dust_pqty;
+                            if (saved.prices.gcc400_pqty !== undefined)       s.prices.gcc400Pqty        = saved.prices.gcc400_pqty;
+                            if (saved.prices.regular_gravel_pqty !== undefined) s.prices.regularGravelPqty = saved.prices.regular_gravel_pqty;
+                            if (saved.prices.chip_gravel_pqty !== undefined)  s.prices.chipGravelPqty    = saved.prices.chip_gravel_pqty;
+                            if (saved.prices.white_gravel_pqty !== undefined) s.prices.whiteGravelPqty   = saved.prices.white_gravel_pqty;
+                            if (saved.prices.white_lime_pqty !== undefined)   s.prices.whiteLimePqty     = saved.prices.white_lime_pqty;
+                            if (saved.prices.micro_fibre_pqty !== undefined)  s.prices.microFibrePqty    = saved.prices.micro_fibre_pqty;
+                            if (saved.prices.macro_fibre_pqty !== undefined)  s.prices.macroFibrePqty    = saved.prices.macro_fibre_pqty;
+                            if (saved.prices.water_reducer_pqty !== undefined) s.prices.waterReducerPqty = saved.prices.water_reducer_pqty;
+                            if (saved.prices.hardener_pqty !== undefined)     s.prices.hardenerPqty      = saved.prices.hardener_pqty;
+                            if (saved.prices.water_pqty !== undefined)        s.prices.waterPqty         = saved.prices.water_pqty;
+                            if (saved.prices.water_unlimited !== undefined)   s.prices.waterUnlimited    = saved.prices.water_unlimited;
                         }
                         if (saved.settings) {
                             if (saved.settings.business_name    !== undefined) s.settings.businessName    = saved.settings.business_name;
@@ -868,7 +1105,7 @@
                             mixes: s.mixes,
                             active_mix: s.activeMix,
                             deleted_mixes: s.deletedMixes,
-                            prices: { portland_bag: s.prices.portland, white_bag: s.prices.white, sand: s.prices.sand, stone_dust: s.prices.stoneDust, gcc400: s.prices.gcc400, regular_gravel: s.prices.regularGravel, chip_gravel: s.prices.chipGravel, white_gravel: s.prices.whiteGravel, white_lime: s.prices.whiteLime, micro_fibre: s.prices.microFibre, macro_fibre: s.prices.macroFibre, water_reducer: s.prices.waterReducer, hardener: s.prices.hardener },
+                            prices: { portland_bag: s.prices.portland, white_bag: s.prices.white, sand: s.prices.sand, stone_dust: s.prices.stoneDust, gcc400: s.prices.gcc400, regular_gravel: s.prices.regularGravel, chip_gravel: s.prices.chipGravel, white_gravel: s.prices.whiteGravel, white_lime: s.prices.whiteLime, micro_fibre: s.prices.microFibre, macro_fibre: s.prices.macroFibre, water_reducer: s.prices.waterReducer, hardener: s.prices.hardener, portland_pqty: s.prices.portlandPqty, white_pqty: s.prices.whitePqty, sand_pqty: s.prices.sandPqty, stone_dust_pqty: s.prices.stoneDustPqty, gcc400_pqty: s.prices.gcc400Pqty, regular_gravel_pqty: s.prices.regularGravelPqty, chip_gravel_pqty: s.prices.chipGravelPqty, white_gravel_pqty: s.prices.whiteGravelPqty, white_lime_pqty: s.prices.whiteLimePqty, micro_fibre_pqty: s.prices.microFibrePqty, macro_fibre_pqty: s.prices.macroFibrePqty, water_reducer_pqty: s.prices.waterReducerPqty, hardener_pqty: s.prices.hardenerPqty, water_pqty: s.prices.waterPqty, water_unlimited: s.prices.waterUnlimited },
                             settings: { business_name: s.settings.businessName||'', business_address: s.settings.businessAddress||'', business_phone: s.settings.businessPhone||'', business_email: s.settings.businessEmail||'', business_tax_id: s.settings.businessTaxId||'', tax_rate: s.settings.taxRate||15 },
                             no_costs: s.noCosts || false,
                             color_preview: s.colorPreview || false
@@ -904,6 +1141,20 @@
                     set('price-macro-fibre', s.prices.macroFibre);
                     set('price-water-reducer', s.prices.waterReducer);
                     set('price-hardener', s.prices.hardener);
+                    set('pqty-portland', s.prices.portlandPqty);
+                    set('pqty-white', s.prices.whitePqty);
+                    set('pqty-sand', s.prices.sandPqty);
+                    set('pqty-stone-dust', s.prices.stoneDustPqty);
+                    set('pqty-gcc400', s.prices.gcc400Pqty);
+                    set('pqty-regular-gravel', s.prices.regularGravelPqty);
+                    set('pqty-chip-gravel', s.prices.chipGravelPqty);
+                    set('pqty-white-gravel', s.prices.whiteGravelPqty);
+                    set('pqty-white-lime', s.prices.whiteLimePqty);
+                    set('pqty-micro-fibre', s.prices.microFibrePqty);
+                    set('pqty-macro-fibre', s.prices.macroFibrePqty);
+                    set('pqty-water-reducer', s.prices.waterReducerPqty);
+                    set('pqty-hardener', s.prices.hardenerPqty);
+                    set('pqty-water', s.prices.waterPqty);
                     // Business identity + tax
                     set('biz-name',    s.settings.businessName || '');
                     set('biz-address', s.settings.businessAddress || '');
@@ -952,6 +1203,18 @@
                     });
                 });
 
+                // F1: Clamp waste factor (override generic handler)
+                (function() {
+                    var wasteEl = document.getElementById('project-waste');
+                    if (!wasteEl) return;
+                    wasteEl.addEventListener('input', function() {
+                        var v = Math.min(2, Math.max(1, parseFloat(wasteEl.value) || 1));
+                        wasteEl.value = v;
+                        calc.state.project.waste = v;
+                        wdOnUpdate();
+                    }, true);
+                })();
+
                 // Wire active mix selector (Project tab)
                 var activeMixSel = document.getElementById('active-mix-select');
                 if (activeMixSel) activeMixSel.addEventListener('change', function() {
@@ -978,6 +1241,46 @@
                     });
                 });
 
+                // Wire purchase qty inputs
+                var pqtyMap = {
+                    'pqty-portland': 'portlandPqty', 'pqty-white': 'whitePqty',
+                    'pqty-sand': 'sandPqty', 'pqty-stone-dust': 'stoneDustPqty', 'pqty-gcc400': 'gcc400Pqty',
+                    'pqty-regular-gravel': 'regularGravelPqty', 'pqty-chip-gravel': 'chipGravelPqty',
+                    'pqty-white-gravel': 'whiteGravelPqty', 'pqty-white-lime': 'whiteLimePqty',
+                    'pqty-micro-fibre': 'microFibrePqty', 'pqty-macro-fibre': 'macroFibrePqty',
+                    'pqty-water-reducer': 'waterReducerPqty', 'pqty-hardener': 'hardenerPqty',
+                    'pqty-water': 'waterPqty'
+                };
+                Object.keys(pqtyMap).forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (!el) return;
+                    el.addEventListener('input', function() {
+                        calc.state.prices[pqtyMap[id]] = parseFloat(el.value) || 1;
+                        wdSaveState();
+                    });
+                });
+
+                // Wire water unlimited toggle
+                (function() {
+                    var toggleWU = document.getElementById('toggle-water-unlimited');
+                    var waterFields = document.getElementById('water-purchase-fields');
+                    if (!toggleWU || !waterFields) return;
+                    var waterUnlimited = calc.state.prices.waterUnlimited !== false;
+                    var applyWU = function(val) {
+                        waterUnlimited = val;
+                        toggleWU.setAttribute('aria-checked', String(val));
+                        var sl = toggleWU.querySelector('.toggle-slider');
+                        if (sl) sl.style.transform = val ? 'translateX(20px)' : 'translateX(0)';
+                        toggleWU.classList.toggle('active', val);
+                        waterFields.style.display = val ? 'none' : 'block';
+                        calc.state.prices.waterUnlimited = val;
+                        wdSaveState();
+                        if (fbInv) fbUpdateInventory(calc);
+                    };
+                    applyWU(waterUnlimited);
+                    toggleWU.addEventListener('click', function() { applyWU(!waterUnlimited); });
+                })();
+
                 // Business identity + tax inputs
                 (function() {
                     var bizMap = { 'biz-name': 'businessName', 'biz-address': 'businessAddress', 'biz-phone': 'businessPhone', 'biz-email': 'businessEmail', 'biz-tax-id': 'businessTaxId' };
@@ -995,22 +1298,57 @@
                     });
                 })();
 
-                // Reset prices button
-                var btnResetPrices = document.getElementById('btn-reset-prices');
-                if (btnResetPrices) btnResetPrices.addEventListener('click', function() {
-                    calc.state.prices = { portland: 1750, white: 3810, sand: 5000, stoneDust: 1800, gcc400: 17891, regularGravel: 4000, chipGravel: 4000, whiteGravel: 1600, whiteLime: 55, microFibre: 1622.6, macroFibre: 2200, waterReducer: 1378.34, hardener: 0 };
-                    (function() {
-                        var p = calc.state.prices;
-                        var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v; };
-                        set('price-portland', p.portland); set('price-white', p.white); set('price-sand', p.sand);
-                        set('price-stone-dust', p.stoneDust); set('price-gcc400', p.gcc400);
-                        set('price-regular-gravel', p.regularGravel); set('price-chip-gravel', p.chipGravel);
-                        set('price-white-gravel', p.whiteGravel); set('price-white-lime', p.whiteLime);
-                        set('price-micro-fibre', p.microFibre); set('price-macro-fibre', p.macroFibre);
-                        set('price-water-reducer', p.waterReducer); set('price-hardener', p.hardener);
-                    })();
-                    wdOnUpdate();
-                });
+                // Reset prices button (B2: two-step confirmation)
+                (function() {
+                    var btnResetPrices = document.getElementById('btn-reset-prices');
+                    if (!btnResetPrices) return;
+                    var resetTimer = null;
+                    var resetOutside = null;
+                    var cancelReset = function() {
+                        clearTimeout(resetTimer);
+                        btnResetPrices.innerHTML = '<span class="icon" id="icon-reset"></span> Reset to Default Prices';
+                        btnResetPrices.removeAttribute('data-confirm');
+                        if (resetOutside) { document.removeEventListener('click', resetOutside, true); resetOutside = null; }
+                    };
+                    btnResetPrices.addEventListener('click', function() {
+                        if (btnResetPrices.getAttribute('data-confirm') === '1') {
+                            cancelReset();
+                            calc.state.prices = { portland: 1750, white: 3810, sand: 5000, stoneDust: 1800, gcc400: 17891, regularGravel: 4000, chipGravel: 4000, whiteGravel: 1600, whiteLime: 55, microFibre: 1622.6, macroFibre: 2200, waterReducer: 1378.34, hardener: 0, portlandPqty: 1, whitePqty: 1, sandPqty: 1, stoneDustPqty: 1, gcc400Pqty: 1, regularGravelPqty: 1, chipGravelPqty: 1, whiteGravelPqty: 1, whiteLimePqty: 1, microFibrePqty: 1, macroFibrePqty: 1, waterReducerPqty: 1, hardenerPqty: 1, waterPqty: 1000, waterUnlimited: true };
+                            (function() {
+                                var p = calc.state.prices;
+                                var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v; };
+                                set('price-portland', p.portland); set('price-white', p.white); set('price-sand', p.sand);
+                                set('price-stone-dust', p.stoneDust); set('price-gcc400', p.gcc400);
+                                set('price-regular-gravel', p.regularGravel); set('price-chip-gravel', p.chipGravel);
+                                set('price-white-gravel', p.whiteGravel); set('price-white-lime', p.whiteLime);
+                                set('price-micro-fibre', p.microFibre); set('price-macro-fibre', p.macroFibre);
+                                set('price-water-reducer', p.waterReducer); set('price-hardener', p.hardener);
+                                set('pqty-portland', 1); set('pqty-white', 1); set('pqty-sand', 1);
+                                set('pqty-stone-dust', 1); set('pqty-gcc400', 1);
+                                set('pqty-regular-gravel', 1); set('pqty-chip-gravel', 1);
+                                set('pqty-white-gravel', 1); set('pqty-white-lime', 1);
+                                set('pqty-micro-fibre', 1); set('pqty-macro-fibre', 1);
+                                set('pqty-water-reducer', 1); set('pqty-hardener', 1); set('pqty-water', 1000);
+                                var toggleWU = document.getElementById('toggle-water-unlimited');
+                                var waterFields = document.getElementById('water-purchase-fields');
+                                if (toggleWU) {
+                                    toggleWU.setAttribute('aria-checked', 'true');
+                                    toggleWU.classList.add('active');
+                                    var sl = toggleWU.querySelector('.toggle-slider');
+                                    if (sl) sl.style.transform = 'translateX(20px)';
+                                }
+                                if (waterFields) waterFields.style.display = 'none';
+                            })();
+                            wdOnUpdate();
+                        } else {
+                            btnResetPrices.setAttribute('data-confirm', '1');
+                            btnResetPrices.textContent = 'Confirm reset?';
+                            resetTimer = setTimeout(cancelReset, 3000);
+                            resetOutside = function(ev) { if (!btnResetPrices.contains(ev.target)) cancelReset(); };
+                            document.addEventListener('click', resetOutside, true);
+                        }
+                    });
+                })();
 
                 // Reset All button
                 (function() {
@@ -1018,6 +1356,55 @@
                     if (btnRA) btnRA.addEventListener('click', function() {
                         localStorage.removeItem(WD_STATE_KEY);
                         location.reload();
+                    });
+                })();
+
+                // C1: Export backup (fallback path)
+                (function() {
+                    var btnEx = document.getElementById('btn-export-data');
+                    if (!btnEx) return;
+                    btnEx.addEventListener('click', function() {
+                        var backup = {
+                            _version: 2,
+                            state: JSON.parse(localStorage.getItem(WD_STATE_KEY) || 'null'),
+                            inventory: JSON.parse(localStorage.getItem(FB_INV_KEY) || 'null'),
+                        };
+                        var blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+                        var url = URL.createObjectURL(blob);
+                        var a = document.createElement('a');
+                        a.href = url;
+                        var d = new Date();
+                        a.download = 'sprat-backup-' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + '.json';
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    });
+                })();
+
+                // C1: Import backup (fallback path)
+                (function() {
+                    var btnIm = document.getElementById('btn-import-data');
+                    if (!btnIm) return;
+                    btnIm.addEventListener('change', function(e) {
+                        var file = e.target.files[0];
+                        if (!file) return;
+                        var reader = new FileReader();
+                        reader.onload = function(ev) {
+                            try {
+                                var data = JSON.parse(ev.target.result);
+                                if (!data._version || !data.state || !data.state.prices || !data.state.project) {
+                                    wdShowToast('Invalid backup file');
+                                    return;
+                                }
+                                if (data.state) localStorage.setItem(WD_STATE_KEY, JSON.stringify(data.state));
+                                if (data.inventory) localStorage.setItem(FB_INV_KEY, JSON.stringify(data.inventory));
+                                wdShowToast('Backup restored \u2014 reloading\u2026');
+                                setTimeout(function() { location.reload(); }, 1200);
+                            } catch(_) {
+                                wdShowToast('Could not read backup file');
+                            }
+                        };
+                        reader.readAsText(file);
+                        btnIm.value = '';
                     });
                 })();
 
@@ -1160,7 +1547,7 @@
 
                 // ── Inventory fallback ────────────────────────────────────────
                 var FB_INV_KEY = 'sprat-inventory';
-                var fbInv = { linked: false, stock: {}, produced: 0 };
+                var fbInv = { linked: true, stock: {}, produced: 0, alwaysShowPurchase: false, purchaseQtys: {} };
 
                 // Load persisted inventory
                 (function() {
@@ -1168,7 +1555,9 @@
                         var saved = JSON.parse(localStorage.getItem(FB_INV_KEY) || 'null');
                         if (saved) {
                             if (typeof saved.linked_to_calculator === 'boolean') fbInv.linked = saved.linked_to_calculator;
+                            if (typeof saved.always_show_purchase === 'boolean') fbInv.alwaysShowPurchase = saved.always_show_purchase;
                             if (saved.stock && typeof saved.stock === 'object') fbInv.stock = saved.stock;
+                            if (saved.purchase_qtys && typeof saved.purchase_qtys === 'object') fbInv.purchaseQtys = saved.purchase_qtys;
                             var today = new Date().toISOString().split('T')[0];
                             if (saved.production_date === today && typeof saved.pavers_produced_today === 'number') {
                                 fbInv.produced = saved.pavers_produced_today;
@@ -1181,11 +1570,74 @@
                     try {
                         localStorage.setItem(FB_INV_KEY, JSON.stringify({
                             linked_to_calculator: fbInv.linked,
+                            always_show_purchase: fbInv.alwaysShowPurchase,
                             stock: fbInv.stock,
+                            purchase_qtys: fbInv.purchaseQtys,
                             pavers_produced_today: fbInv.produced,
                             production_date: new Date().toISOString().split('T')[0]
                         }));
                     } catch(_) {}
+                }
+
+                function fbMinPurchaseUnit(stockKey) {
+                    if (stockKey.indexOf('_bags') >= 0) return 1;
+                    if (stockKey.indexOf('_yd3')  >= 0) return 0.25;
+                    return 0.1;
+                }
+
+                var pqtyKeyMap = {
+                    portland_bags: 'portlandPqty', white_bags: 'whitePqty',
+                    sand_yd3: 'sandPqty', stone_dust_b_yd3: 'stoneDustPqty', gcc400_b_yd3: 'gcc400Pqty',
+                    stone_dust_c_yd3: 'stoneDustPqty', gcc400_c_yd3: 'gcc400Pqty',
+                    regular_gravel_yd3: 'regularGravelPqty', chip_gravel_yd3: 'chipGravelPqty',
+                    white_gravel_yd3: 'whiteGravelPqty', white_lime_yd3: 'whiteLimePqty',
+                    micro_fibre_kg: 'microFibrePqty', macro_fibre_kg: 'macroFibrePqty',
+                    water_reducer_kg: 'waterReducerPqty', hardener_kg: 'hardenerPqty',
+                    pigment1_l: 'waterPqty', pigment2_l: 'waterPqty',
+                    water_l: 'waterPqty'
+                };
+
+                function fbGetPurchaseUnit(stockKey, calc) {
+                    var pkey = pqtyKeyMap[stockKey];
+                    if (pkey && calc && calc.state && calc.state.prices && calc.state.prices[pkey]) {
+                        return calc.state.prices[pkey];
+                    }
+                    return fbMinPurchaseUnit(stockKey);
+                }
+
+                function fbQtyDecimals(stockKey) {
+                    if (stockKey.indexOf('_bags') >= 0) return 0;
+                    if (stockKey.indexOf('_yd3')  >= 0) return 2;
+                    return 1;
+                }
+
+                function fbCalcShortfall(m, calc) {
+                    var deficit = m.remaining < 0 ? -m.remaining : 0;
+                    var rounded = fbRoundPurchaseUnit(deficit, m.stockKey);
+                    return Math.max(rounded, fbGetPurchaseUnit(m.stockKey, calc));
+                }
+
+                function fbUpdatePurchaseRow(m) {
+                    var pillEl = document.getElementById('inv-purchase-pill-' + m.key);
+                    if (!pillEl) return;
+                    // Water unlimited — always hide
+                    if (m.stockKey === 'water_l' && calc && calc.state && calc.state.prices.waterUnlimited !== false) {
+                        pillEl.style.display = 'none';
+                        return;
+                    }
+                    var isDepleted = m.linked && (m.stock <= 0 || m.remaining <= 0);
+                    var isLow = m.linked && m.daysRemaining !== null && m.daysRemaining > 0 && m.daysRemaining <= 2;
+                    var alwaysShow = fbInv.alwaysShowPurchase;
+                    var show = alwaysShow || isDepleted || isLow;
+                    pillEl.style.display = show ? '' : 'none';
+                    pillEl.classList.remove('purchase-glow-low', 'purchase-glow-empty');
+                    if (alwaysShow && isDepleted) pillEl.classList.add('purchase-glow-empty');
+                    else if (alwaysShow && isLow) pillEl.classList.add('purchase-glow-low');
+                    if (show && fbInv.purchaseQtys[m.key] === undefined) {
+                        fbInv.purchaseQtys[m.key] = fbCalcShortfall(m, calc);
+                        var qtyEl = document.getElementById('inv-purchase-qty-' + m.key);
+                        if (qtyEl) qtyEl.textContent = fbInv.purchaseQtys[m.key].toFixed(fbQtyDecimals(m.stockKey));
+                    }
                 }
 
                 function fbGetUnit(stockKey) {
@@ -1382,6 +1834,10 @@
                         var pig1Total = mat.totalCementKg * (pig.total_percent / 100) * pig.pigment1_parts / ((pig.pigment1_parts + pig.pigment2_parts) || 1);
                         items.push(make('pigment1', pig.pigment1_name, 'pigment1_l', pig1Total));
                     }
+                    if (pig.total_percent > 0 && pig.pigment2_parts > 0 && pig.pigment2_name !== 'None') {
+                        var pig2Total = mat.totalCementKg * (pig.total_percent / 100) * pig.pigment2_parts / ((pig.pigment1_parts + pig.pigment2_parts) || 1);
+                        items.push(make('pigment2', pig.pigment2_name, 'pigment2_l', pig2Total));
+                    }
                     return items;
                 }
 
@@ -1449,6 +1905,9 @@
                         '<div class="result-row"><span class="result-label">Restock Cost</span><span class="result-value">' + fbFmtCurrency(restockCost) + '</span></div>';
                 }
 
+                // D1: HTML escape helper (fallback path)
+                function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
                 function fbRenderInventory(calc) {
                     var container = document.getElementById('inventory-materials');
                     if (!container) return;
@@ -1480,14 +1939,23 @@
                             var unit = fbGetUnit(m.stockKey);
                             html += '<div class="inventory-item" data-inv-key="' + m.key + '">';
                             html += '<div class="inventory-item-header">';
-                            html += '<span class="inventory-item-name">' + m.name + '</span>';
+                            html += '<span class="inventory-item-name">' + esc(m.name) + '</span>';
+                            if (m.linked) {
+                                html += '<div class="inv-purchase-pill" id="inv-purchase-pill-' + m.key + '" style="display:none;">';
+                                html += '<span class="inv-purchase-label">Purchase</span>';
+                                html += '<button class="inv-purchase-btn inv-purchase-dec" data-key="' + m.key + '">−</button>';
+                                html += '<span class="inv-purchase-qty" id="inv-purchase-qty-' + m.key + '">0</span>';
+                                html += '<span class="inv-purchase-unit">' + esc(unit) + '</span>';
+                                html += '<button class="inv-purchase-btn inv-purchase-inc" data-key="' + m.key + '">+</button>';
+                                html += '</div>';
+                            }
                             html += '<span class="inventory-status" id="inv-status-' + m.key + '">--</span>';
                             html += '</div>';
                             html += '<div class="input-group" style="margin-bottom:8px;">';
                             html += '<label class="input-label">Stock on Hand</label>';
                             html += '<div class="input-row">';
                             html += '<input type="number" id="inv-stock-' + m.key + '" class="input-number" value="' + m.stock + '" min="0" step="0.1" data-stock-key="' + m.stockKey + '">';
-                            html += '<span class="input-unit">' + unit + '</span>';
+                            html += '<span class="input-unit">' + esc(unit) + '</span>';
                             html += '</div></div>';
                             if (m.linked) {
                                 html += '<div class="result-row"><span class="result-label">Per Paver</span><span class="result-value" id="inv-pp-' + m.key + '">--</span></div>';
@@ -1515,8 +1983,46 @@
                         });
                     });
 
+                    // Wire purchase +/- buttons
+                    container.querySelectorAll('.inv-purchase-dec, .inv-purchase-inc').forEach(function(btn) {
+                        btn.addEventListener('click', function() {
+                            var key = btn.dataset.key;
+                            var m = materials.find(function(x) { return x.key === key; });
+                            if (!m) return;
+                            var step = fbGetPurchaseUnit(m.stockKey, calc);
+                            if (fbInv.purchaseQtys[key] === undefined) fbInv.purchaseQtys[key] = fbCalcShortfall(m, calc);
+                            fbInv.purchaseQtys[key] = btn.classList.contains('inv-purchase-inc')
+                                ? fbInv.purchaseQtys[key] + step
+                                : Math.max(0, fbInv.purchaseQtys[key] - step);
+                            var qtyEl = document.getElementById('inv-purchase-qty-' + key);
+                            if (qtyEl) qtyEl.textContent = fbInv.purchaseQtys[key].toFixed(fbQtyDecimals(m.stockKey));
+                            fbSaveInventory();
+                        });
+                    });
+
                     materials.forEach(fbUpdateStatus);
+                    materials.forEach(fbUpdatePurchaseRow);
                     fbRenderSummaryCard(materials, calc);
+
+                    // Header stock status
+                    (function() {
+                        var el = document.getElementById('header-stock-status');
+                        if (!el) return;
+                        var linked = materials.filter(function(m) { return m.linked; });
+                        var depleted = linked.filter(function(m) { return m.stock <= 0 || m.remaining <= 0; });
+                        var low = linked.filter(function(m) { return m.daysRemaining !== null && m.daysRemaining > 0 && m.daysRemaining <= 2; });
+                        var bottleneck = linked.filter(function(m) { return m.daysRemaining !== null && m.remaining > 0; })
+                            .sort(function(a,b) { return a.daysRemaining - b.daysRemaining; })[0] || null;
+                        if (depleted.length > 0) {
+                            el.textContent = 'DEPLETED'; el.className = 'stock-empty'; el.style.display = ''; el._stockTarget = depleted[0].key;
+                        } else if (low.length > 0) {
+                            el.textContent = 'LOW STOCK'; el.className = 'stock-low'; el.style.display = ''; el._stockTarget = low[0].key;
+                        } else if (bottleneck) {
+                            el.textContent = bottleneck.daysRemaining.toFixed(1) + 'd stock'; el.className = 'stock-ok'; el.style.display = ''; el._stockTarget = bottleneck.key;
+                        } else {
+                            el.style.display = 'none';
+                        }
+                    })();
                 }
 
                 function fbGeneratePurchaseOrder(calc) {
@@ -1588,6 +2094,43 @@
                     });
                 }
 
+                // Wire always-show-purchase toggle
+                var alwaysPurchaseToggle = document.getElementById('toggle-always-purchase');
+                if (alwaysPurchaseToggle) {
+                    alwaysPurchaseToggle.setAttribute('aria-checked', String(fbInv.alwaysShowPurchase));
+                    var apSlider = alwaysPurchaseToggle.querySelector('.toggle-slider');
+                    if (apSlider) apSlider.style.transform = fbInv.alwaysShowPurchase ? 'translateX(20px)' : 'translateX(0)';
+                    alwaysPurchaseToggle.addEventListener('click', function() {
+                        fbInv.alwaysShowPurchase = !fbInv.alwaysShowPurchase;
+                        alwaysPurchaseToggle.setAttribute('aria-checked', String(fbInv.alwaysShowPurchase));
+                        var sl = alwaysPurchaseToggle.querySelector('.toggle-slider');
+                        if (sl) sl.style.transform = fbInv.alwaysShowPurchase ? 'translateX(20px)' : 'translateX(0)';
+                        fbSaveInventory();
+                        fbUpdateInventory(calc);
+                    });
+                }
+
+                // Header stock status tap
+                (function() {
+                    var el = document.getElementById('header-stock-status');
+                    if (!el) return;
+                    function goToStock() {
+                        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+                        document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+                        var invBtn = document.querySelector('[data-tab="inventory"]');
+                        if (invBtn) invBtn.classList.add('active');
+                        var invTab = document.getElementById('tab-inventory');
+                        if (invTab) invTab.classList.add('active');
+                        var key = el._stockTarget;
+                        if (key) {
+                            var target = document.querySelector('[data-inv-key="' + key + '"]');
+                            if (target) setTimeout(function() { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
+                        }
+                    }
+                    el.addEventListener('click', goToStock);
+                    el.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') goToStock(); });
+                })();
+
                 // Wire pavers-produced-today input
                 var producedEl = document.getElementById('inventory-pavers-today');
                 if (producedEl) {
@@ -1627,6 +2170,51 @@
             }
         }
     }, 2000);
+    </script>
+
+    <script>
+    // E1: Online/offline indicator
+    (function() {
+        function updateOnlineStatus() { document.body.classList.toggle('is-offline', !navigator.onLine); }
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus();
+    })();
+
+    // E2: Service worker registration + update prompt
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/service-worker.js').then(function(reg) {
+            reg.addEventListener('updatefound', function() {
+                var newWorker = reg.installing;
+                if (newWorker) {
+                    newWorker.addEventListener('statechange', function() {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            var toast = document.getElementById('toast');
+                            var msg = document.getElementById('toast-message');
+                            if (toast && msg) {
+                                msg.textContent = 'App updated \u2014 tap to reload';
+                                toast.classList.add('show');
+                                toast.style.cursor = 'pointer';
+                                toast.addEventListener('click', function() { window.location.reload(); }, { once: true });
+                            }
+                        }
+                    });
+                }
+            });
+        });
+        navigator.serviceWorker.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'SW_UPDATED') {
+                var toast = document.getElementById('toast');
+                var msg = document.getElementById('toast-message');
+                if (toast && msg) {
+                    msg.textContent = 'App updated \u2014 tap to reload';
+                    toast.classList.add('show');
+                    toast.style.cursor = 'pointer';
+                    toast.addEventListener('click', function() { window.location.reload(); }, { once: true });
+                }
+            }
+        });
+    }
     </script>
 </body>
 </html>
