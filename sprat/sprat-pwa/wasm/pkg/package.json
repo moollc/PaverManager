@@ -1,0 +1,15 @@
+{
+  "name": "sprat-pwa",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "sprat_pwa_bg.wasm",
+    "sprat_pwa.js",
+    "sprat_pwa.d.ts"
+  ],
+  "main": "sprat_pwa.js",
+  "types": "sprat_pwa.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

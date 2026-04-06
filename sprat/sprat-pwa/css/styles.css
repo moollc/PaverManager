@@ -138,6 +138,69 @@ body {
     letter-spacing: 0.03em;
 }
 
+#header-stock-status {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 8px;
+}
+#header-stock-status.stock-ok    { color: #059669; }
+#header-stock-status.stock-low   { color: #f59e0b; }
+#header-stock-status.stock-empty { color: #f87171; }
+
+.inv-purchase-pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+}
+.inv-purchase-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-right: 2px;
+}
+.inv-purchase-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+}
+.inv-purchase-btn:active { opacity: 0.6; }
+.inv-purchase-qty {
+    min-width: 28px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+.inv-purchase-unit {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+.inv-purchase-days {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #16a34a;
+    margin-left: 2px;
+    white-space: nowrap;
+}
+.inv-purchase-pill.purchase-glow-low   { border-color: #d97706; background: rgba(249, 158, 11, 0.15); border-left: 3px solid #d97706; }
+.inv-purchase-pill.purchase-glow-empty { border-color: #dc2626; background: rgba(220, 38, 38, 0.15); border-left: 3px solid #dc2626; }
+
 
 .theme-mode-btn {
     flex: 1;
@@ -245,6 +308,12 @@ body {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.input-number:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: var(--bg-body);
 }
 
 .input-unit {
@@ -656,6 +725,10 @@ body {
     transform: translateX(20px);
 }
 
+.toggle-switch:hover { background: var(--text-secondary); }
+.toggle-switch.active:hover { filter: brightness(1.1); }
+.toggle-switch:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+
 /* Write mode red glow */
 body.sync-write-mode {
     box-shadow: inset 0 0 0 2px rgba(220, 38, 38, 0.4),
@@ -989,6 +1062,11 @@ input:focus, select:focus, button:focus {
     color: #fff;
 }
 
+.inventory-status-reorder {
+    background: #8b5cf6;
+    color: #fff;
+}
+
 .inventory-negative .result-value {
     color: #dc2626;
 }
@@ -1071,8 +1149,12 @@ input:focus, select:focus, button:focus {
         padding: 6px 2px;
     }
     .tab-label {
-        font-size: 0.5625rem;
+        font-size: 0.625rem;
     }
+}
+@media (max-width: 360px) {
+    .tab-label { display: none; }
+    .tab-btn { padding: 8px 4px; }
 }
 
 /* Profit section */
@@ -1571,3 +1653,46 @@ input:focus, select:focus, button:focus {
     #inventory-materials { display: none !important; }
     .header, .tab-nav, #loading-overlay { display: none !important; }
 }
+
+/* Offline indicator (E1) */
+body.is-offline::before {
+    content: 'Offline';
+    display: block;
+    background: #d97706;
+    color: white;
+    text-align: center;
+    font-size: 0.75rem;
+    padding: 2px 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+}
+
+/* Settings section nav (G1) */
+.settings-nav {
+    display: flex;
+    gap: 6px;
+    padding: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg-body);
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
+}
+.settings-nav a {
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-decoration: none;
+}
+.settings-nav a:hover { color: var(--primary-color); border-color: var(--primary-color); }
+.settings-nav a:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+.card[id^="settings-"] { scroll-margin-top: 48px; }
