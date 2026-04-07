@@ -30,17 +30,13 @@ const FB_PIGMENT_DENSITY = {
     'None':                   1.0
 };
 
-// Pigment prices (JMD/L) — mirrors app.js getPigmentPrice()
-const FB_PIGMENT_PRICE = {
-    'Red Iron Oxide':         1371.72,
-    'Yellow Iron Oxide':      600.54,
-    'Black Iron Oxide':       1919.34,
-    'Blue Pigment':           7143,
-    'Green Pigment':          1518.57,
-    'Brown Pigment':          3000,
-    'White Titanium Dioxide': 2591.32,
-    'None':                   0
-};
+// Pigment prices (JMD/lb) — mirrors app.js getPigmentPrice()
+const FB_PIGMENT_PRICE_PER_LB = 600;
+const FB_PIGMENT_PRICE_PER_KG = FB_PIGMENT_PRICE_PER_LB / 0.453592; // ~1322.77
+
+// Water reducer container: 5-gallon = 18.927 L, density ~1.08 g/mL
+const FB_WATER_REDUCER_CONTAINER_L = 18.927;
+const FB_WATER_REDUCER_CONTAINER_KG = FB_WATER_REDUCER_CONTAINER_L * 1.08; // ~20.44 kg
 
 // Conversions
 const FB_INCH_TO_ML = 16.387;
@@ -176,11 +172,11 @@ class ConcreteCalculator {
             prices: {
                 portland: 1750,
                 white: 3810,
-                sand: 5000,
-                stoneDust: 1800,
-                gcc400: 17891,
-                regularGravel: 4000,
-                chipGravel: 4000,
+                sand: 600,
+                stoneDust: 180,
+                gcc400: 600,
+                regularGravel: 600,
+                chipGravel: 600,
                 whiteGravel: 1600,
                 whiteLime: 55,
                 microFibre: 1622.6,
@@ -201,7 +197,18 @@ class ConcreteCalculator {
                 waterReducerPqty: 1,
                 hardenerPqty: 1,
                 waterPqty: 1000,
-                waterUnlimited: true
+                waterUnlimited: true,
+                bagYd3Sand: 0,
+                bagYd3StoneDust: 122,
+                bagYd3Gcc400: 0,
+                bagYd3RegularGravel: 0,
+                bagYd3ChipGravel: 0,
+                bagYd3WhiteGravel: 0,
+                bagYd3WhiteLime: 0
+            },
+            settings: {
+                coarseUnitMode: 'bags',
+                pigmentUnitMode: 'lb',
             }
         };
     }
@@ -905,10 +912,22 @@ ${this.state.deletedMixes.map((entry, di) => `
         sEl('cement-white',    `${fmt(m.white.volumeL)} L / ${fmt(m.white.bags, 1)} bags`);
         sEl('cement-total',    `${fmt(m.totalCementKg)} kg`);
 
-        // Fine aggregates (indexed)
-        sEl('fine-sand',       `${fmt(m.sand.volumeL)} L`);
-        sEl('fine-stone-dust', `${fmt(m.stoneDustB.volumeL)} L`);
-        sEl('fine-gcc400',     `${fmt(m.gcc400B.volumeL)} L`);
+        // Fine aggregates (indexed) — show L + yd³ + bags where configured
+        const p = this.state.prices;
+        const _bagYd3Map = {
+            sand_yd3: p.bagYd3Sand, stone_dust_b_yd3: p.bagYd3StoneDust,
+            gcc400_b_yd3: p.bagYd3Gcc400
+        };
+        const _fineAggFmt = (volumeL, stockKey) => {
+            const yd3 = volumeL / 764.555;
+            const ypb = _bagYd3Map[stockKey] || 0;
+            let s = `${fmt(volumeL)} L / ${fmt(yd3, 3)} yd³`;
+            if (ypb > 0) s += ` / ${fmt(yd3 / ypb, 1)} bags`;
+            return s;
+        };
+        sEl('fine-sand',       _fineAggFmt(m.sand.volumeL, 'sand_yd3'));
+        sEl('fine-stone-dust', _fineAggFmt(m.stoneDustB.volumeL, 'stone_dust_b_yd3'));
+        sEl('fine-gcc400',     _fineAggFmt(m.gcc400B.volumeL, 'gcc400_b_yd3'));
         sEl('fine-total',      `${fmt(m.totalFineL)} L`);
 
         // Coarse (indexed)
@@ -1308,9 +1327,9 @@ ${this.state.deletedMixes.map((entry, di) => `
             'Admixtures,Macro Fibre,' + fmt2(adm.macroFibreKg, 3) + ' kg,' + s.prices.macroFibre + ',' + fmt2(c.macroFibreCost) + '\n' +
             'Admixtures,Water Reducer,' + fmt2(adm.waterReducerKg, 3) + ' kg,' + s.prices.waterReducer + ',' + fmt2(c.waterReducerCost) + '\n' +
             'Admixtures,Hardener,' + fmt2(adm.hardenerKg, 3) + ' kg,' + s.prices.hardener + ',' + fmt2(c.hardenerCost) + '\n' +
-            'Pigments,' + mix.pigments.pigment1_name + ',' + fmt2(pig.pigment1L, 3) + ' L,' + (FB_PIGMENT_PRICE[mix.pigments.pigment1_name] || 0) + ',' + fmt2(c.pigment1Cost) + '\n' +
+            'Pigments,' + mix.pigments.pigment1_name + ',' + fmt2(pig.pigment1Kg, 3) + ' kg,' + FB_PIGMENT_PRICE_PER_LB + ',' + fmt2(c.pigment1Cost) + '\n' +
             (mix.pigments.pigment2_name !== 'None' && mix.pigments.pigment2_parts > 0
-                ? 'Pigments,' + mix.pigments.pigment2_name + ',' + fmt2(pig.pigment2L, 3) + ' L,' + (FB_PIGMENT_PRICE[mix.pigments.pigment2_name] || 0) + ',' + fmt2(c.pigment2Cost) + '\n' : '') + '\n' +
+                ? 'Pigments,' + mix.pigments.pigment2_name + ',' + fmt2(pig.pigment2Kg, 3) + ' kg,' + FB_PIGMENT_PRICE_PER_LB + ',' + fmt2(c.pigment2Cost) + '\n' : '') + '\n' +
 
             'COST SUMMARY\nCategory,Cost (JMD)\n' +
             'Material Cost (Total),' + fmt2(c.totalMaterial) + '\n' +
@@ -1344,11 +1363,13 @@ ${this.state.deletedMixes.map((entry, di) => `
     }
 }
 
-// Initialize fallback calculator when DOM is loaded (only if WASM path fails)
-// app.js handles WASM loading; this module is loaded as a separate script tag
-// and activates only if window.__fallbackActive is set by app.js error handling.
-document.addEventListener('DOMContentLoaded', () => {
-    if (!window.__fallbackActive) return;
+// Initialize fallback calculator — called by app.js when WASM fails, or by watchdog.
+// Exposed as window.activateFallback() so app.js can call it at the right moment.
+let _fbActivated = false;
+window.activateFallback = () => {
+    if (_fbActivated) return;
+    _fbActivated = true;
+    window.__fallbackActive = true;
 
     console.log('WASM module not available, using JavaScript fallback');
     const calculator = new ConcreteCalculator();
@@ -1423,6 +1444,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (saved.prices.macro_fibre     !== undefined) p.macroFibre    = saved.prices.macro_fibre;
                 if (saved.prices.water_reducer   !== undefined) p.waterReducer  = saved.prices.water_reducer;
                 if (saved.prices.hardener        !== undefined) p.hardener      = saved.prices.hardener;
+                if (saved.prices.bag_yd3_sand          !== undefined) p.bagYd3Sand          = saved.prices.bag_yd3_sand;
+                if (saved.prices.bag_yd3_stone_dust    !== undefined) p.bagYd3StoneDust     = saved.prices.bag_yd3_stone_dust;
+                if (saved.prices.bag_yd3_gcc400        !== undefined) p.bagYd3Gcc400        = saved.prices.bag_yd3_gcc400;
+                if (saved.prices.bag_yd3_regular_gravel !== undefined) p.bagYd3RegularGravel = saved.prices.bag_yd3_regular_gravel;
+                if (saved.prices.bag_yd3_chip_gravel   !== undefined) p.bagYd3ChipGravel    = saved.prices.bag_yd3_chip_gravel;
+                if (saved.prices.bag_yd3_white_gravel  !== undefined) p.bagYd3WhiteGravel   = saved.prices.bag_yd3_white_gravel;
+                if (saved.prices.bag_yd3_white_lime    !== undefined) p.bagYd3WhiteLime     = saved.prices.bag_yd3_white_lime;
             }
         } catch (_) {}
     };
@@ -1442,7 +1470,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 mixes: s.mixes,
                 active_mix: s.activeMix,
                 deleted_mixes: s.deletedMixes,
-                prices: { portland_bag: s.prices.portland, white_bag: s.prices.white, sand: s.prices.sand, stone_dust: s.prices.stoneDust, gcc400: s.prices.gcc400, regular_gravel: s.prices.regularGravel, chip_gravel: s.prices.chipGravel, white_gravel: s.prices.whiteGravel, white_lime: s.prices.whiteLime, micro_fibre: s.prices.microFibre, macro_fibre: s.prices.macroFibre, water_reducer: s.prices.waterReducer, hardener: s.prices.hardener },
+                prices: { portland_bag: s.prices.portland, white_bag: s.prices.white, sand: s.prices.sand, stone_dust: s.prices.stoneDust, gcc400: s.prices.gcc400, regular_gravel: s.prices.regularGravel, chip_gravel: s.prices.chipGravel, white_gravel: s.prices.whiteGravel, white_lime: s.prices.whiteLime, micro_fibre: s.prices.microFibre, macro_fibre: s.prices.macroFibre, water_reducer: s.prices.waterReducer, hardener: s.prices.hardener, bag_yd3_sand: s.prices.bagYd3Sand, bag_yd3_stone_dust: s.prices.bagYd3StoneDust, bag_yd3_gcc400: s.prices.bagYd3Gcc400, bag_yd3_regular_gravel: s.prices.bagYd3RegularGravel, bag_yd3_chip_gravel: s.prices.bagYd3ChipGravel, bag_yd3_white_gravel: s.prices.bagYd3WhiteGravel, bag_yd3_white_lime: s.prices.bagYd3WhiteLime },
                 settings: { business_name: s.settings.businessName, business_address: s.settings.businessAddress, business_phone: s.settings.businessPhone, business_email: s.settings.businessEmail, business_tax_id: s.settings.businessTaxId, tax_rate: s.settings.taxRate },
                 no_costs: s.noCosts || false,
                 color_preview: s.colorPreview || false
@@ -1479,6 +1507,14 @@ document.addEventListener('DOMContentLoaded', () => {
         set('price-macro-fibre', s.prices.macroFibre);
         set('price-water-reducer', s.prices.waterReducer);
         set('price-hardener', s.prices.hardener);
+        // Bag sizes
+        set('bag-yd3-sand',          s.prices.bagYd3Sand);
+        set('bag-yd3-stone-dust',    s.prices.bagYd3StoneDust);
+        set('bag-yd3-gcc400',        s.prices.bagYd3Gcc400);
+        set('bag-yd3-regular-gravel',s.prices.bagYd3RegularGravel);
+        set('bag-yd3-chip-gravel',   s.prices.bagYd3ChipGravel);
+        set('bag-yd3-white-gravel',  s.prices.bagYd3WhiteGravel);
+        set('bag-yd3-white-lime',    s.prices.bagYd3WhiteLime);
         // Business identity + tax
         set('biz-name',    s.settings.businessName);
         set('biz-address', s.settings.businessAddress);
@@ -1566,6 +1602,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Bag size inputs
+    const bagYd3Map = {
+        'bag-yd3-sand': 'bagYd3Sand', 'bag-yd3-stone-dust': 'bagYd3StoneDust',
+        'bag-yd3-gcc400': 'bagYd3Gcc400', 'bag-yd3-regular-gravel': 'bagYd3RegularGravel',
+        'bag-yd3-chip-gravel': 'bagYd3ChipGravel', 'bag-yd3-white-gravel': 'bagYd3WhiteGravel',
+        'bag-yd3-white-lime': 'bagYd3WhiteLime'
+    };
+    Object.entries(bagYd3Map).forEach(([id, key]) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', () => {
+            calculator.state.prices[key] = parseFloat(el.value) || 0;
+            fbSaveState();
+            fbInvRender();
+        });
+    });
+
     // Business identity + tax inputs
     const bizFieldMapFb = { 'biz-name': 'businessName', 'biz-address': 'businessAddress', 'biz-phone': 'businessPhone', 'biz-email': 'businessEmail', 'biz-tax-id': 'businessTaxId' };
     Object.entries(bizFieldMapFb).forEach(([id, key]) => {
@@ -1578,7 +1630,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Reset prices
     const btnResetPrices = document.getElementById('btn-reset-prices');
     if (btnResetPrices) btnResetPrices.addEventListener('click', () => {
-        calculator.state.prices = { portland: 1750, white: 3810, sand: 5000, stoneDust: 1800, gcc400: 17891, regularGravel: 4000, chipGravel: 4000, whiteGravel: 1600, whiteLime: 55, microFibre: 1622.6, macroFibre: 2200, waterReducer: 1378.34, hardener: 0 };
+        calculator.state.prices = { portland: 1750, white: 3810, sand: 5000, stoneDust: 1800, gcc400: 17891, regularGravel: 4000, chipGravel: 4000, whiteGravel: 1600, whiteLime: 55, microFibre: 1622.6, macroFibre: 2200, waterReducer: 1378.34, hardener: 0, bagYd3Sand: 0, bagYd3StoneDust: 122, bagYd3Gcc400: 0, bagYd3RegularGravel: 0, bagYd3ChipGravel: 0, bagYd3WhiteGravel: 0, bagYd3WhiteLime: 0 };
         fbSyncProjectAndPrices();
         onUpdate();
     });
@@ -1735,7 +1787,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── Inventory ─────────────────────────────────────────────────────────────
     const FB_INV_KEY_FB = 'sprat-inventory';
-    const fbInvState = { linked: true, stock: {}, produced: 0 };
+    const fbInvState = { linked: true, stock: {}, produced: 0, productionMode: 'daily', productionTargetDaily: 0, productionTargetWeekly: 0, productionTargetMonthly: 0, waterUnlimited: true, daysMultiplier: 0, alwaysShowPurchase: false };
     const FB_L_TO_YD3_FB = 1.30795 / 1000;
 
     // Load persisted inventory
@@ -1745,6 +1797,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (saved) {
                 if (typeof saved.linked_to_calculator === 'boolean') fbInvState.linked = saved.linked_to_calculator;
                 if (saved.stock && typeof saved.stock === 'object') fbInvState.stock = saved.stock;
+                if (saved.production_mode === 'daily' || saved.production_mode === 'weekly' || saved.production_mode === 'monthly') fbInvState.productionMode = saved.production_mode;
+                ['daily','weekly','monthly'].forEach(m => {
+                    const k = 'production_target_' + m;
+                    const fk = 'productionTarget' + m.charAt(0).toUpperCase() + m.slice(1);
+                    if (typeof saved[k] === 'number') fbInvState[fk] = saved[k];
+                    else if (m === 'daily' && typeof saved.production_target === 'number') fbInvState.productionTargetDaily = saved.production_target;
+                });
+                if (typeof saved.water_unlimited === 'boolean') fbInvState.waterUnlimited = saved.water_unlimited;
+                if (typeof saved.days_multiplier === 'number') fbInvState.daysMultiplier = saved.days_multiplier;
                 const today = new Date().toISOString().split('T')[0];
                 if (saved.production_date === today && typeof saved.pavers_produced_today === 'number') {
                     fbInvState.produced = saved.pavers_produced_today;
@@ -1760,6 +1821,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 stock: fbInvState.stock,
                 pavers_produced_today: fbInvState.produced,
                 production_date: new Date().toISOString().split('T')[0],
+                production_mode: fbInvState.productionMode,
+                production_target_daily: fbInvState.productionTargetDaily,
+                production_target_weekly: fbInvState.productionTargetWeekly,
+                production_target_monthly: fbInvState.productionTargetMonthly,
+                water_unlimited: fbInvState.waterUnlimited,
+                days_multiplier: fbInvState.daysMultiplier,
             }));
             if (window.SheetSync) window.SheetSync.markDirty('inventory');
         } catch (_) {}
@@ -1784,7 +1851,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const fbInvFmtC = (v) => 'JMD ' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    const fbInvIsActionable = (k) => k !== 'water_l';
+    // Bag conversion helpers — reads bag size from calculator.state.prices
+    const fbGetYd3PerBag = (stockKey) => {
+        const p = calculator.state.prices;
+        const keyMap = {
+            sand_yd3:           p.bagYd3Sand,
+            stone_dust_b_yd3:   p.bagYd3StoneDust,
+            stone_dust_c_yd3:   p.bagYd3StoneDust,
+            gcc400_b_yd3:       p.bagYd3Gcc400,
+            gcc400_c_yd3:       p.bagYd3Gcc400,
+            regular_gravel_yd3: p.bagYd3RegularGravel,
+            chip_gravel_yd3:    p.bagYd3ChipGravel,
+            white_gravel_yd3:   p.bagYd3WhiteGravel,
+            white_lime_yd3:     p.bagYd3WhiteLime,
+        };
+        return keyMap[stockKey] || 0;
+    };
+    const fbYd3ToBags = (yd3, stockKey) => {
+        const ypb = fbGetYd3PerBag(stockKey);
+        return ypb > 0 ? yd3 / ypb : null;
+    };
+    const fbBagsToYd3 = (bags, stockKey) => {
+        const ypb = fbGetYd3PerBag(stockKey);
+        return ypb > 0 ? bags * ypb : null;
+    };
+
+    const fbInvUpdatePurchaseRow = (m) => {
+        const pillEl = document.getElementById(`inv-purchase-pill-${m.key}`);
+        if (!pillEl) return;
+        if (m.stockKey === 'water_l' && fbInvState.waterUnlimited) { pillEl.style.display = 'none'; return; }
+        const isDepleted = m.stock <= 0 || m.remaining <= 0;
+        const isLow = m.daysRemaining !== null && m.daysRemaining > 0 && m.daysRemaining <= 2;
+        const show = fbInvState.alwaysShowPurchase || isDepleted || isLow;
+        pillEl.style.display = show ? '' : 'none';
+        pillEl.classList.remove('purchase-glow-low', 'purchase-glow-empty');
+        if (fbInvState.alwaysShowPurchase && isDepleted) pillEl.classList.add('purchase-glow-empty');
+        else if (fbInvState.alwaysShowPurchase && isLow) pillEl.classList.add('purchase-glow-low');
+        // Initialize qty if not set
+        if (!fbInvState.purchaseQtys) fbInvState.purchaseQtys = {};
+        if (show && fbInvState.purchaseQtys[m.key] === undefined) {
+            const deficit = m.remaining < 0 ? -m.remaining : 0;
+            fbInvState.purchaseQtys[m.key] = Math.max(deficit, fbInvGetUnitSize(m.stockKey));
+        }
+        const qtyEl = document.getElementById(`inv-purchase-qty-${m.key}`);
+        if (qtyEl && show) qtyEl.textContent = (fbInvState.purchaseQtys[m.key] || 0).toFixed(m.stockKey.endsWith('_yd3') ? 2 : m.stockKey.endsWith('_bags') ? 0 : 1);
+        const daysEl = document.getElementById(`inv-purchase-days-${m.key}`);
+        if (daysEl) {
+            const pqty = fbInvState.purchaseQtys[m.key] || 0;
+            if (show && pqty > 0 && m.dailyUsage > 0) daysEl.textContent = `+${(pqty / m.dailyUsage).toFixed(1)}d`;
+            else daysEl.textContent = '';
+        }
+    };
+
+    const fbInvGetUnitSize = (stockKey) => {
+        if (stockKey.endsWith('_bags')) return 1;
+        if (stockKey.endsWith('_yd3')) return 0.25;
+        return 0.1;
+    };
+
+    const fbInvIsActionable = (k) => {
+        if (k === 'water_l' && fbInvState.waterUnlimited) return false;
+        return k !== 'water_l' || !fbInvState.waterUnlimited;
+    };
 
     const fbInvGetPrice = (stockKey) => {
         const p = calculator.state.prices;
@@ -1806,8 +1934,14 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'macro_fibre_kg':     return p.macroFibre || 0;
             case 'water_reducer_kg':   return p.waterReducer || 0;
             case 'hardener_kg':        return p.hardener || 0;
-            case 'pigment1_l':         return FB_PIGMENT_PRICE[mix.pigments.pigment1_name] || 0;
-            case 'pigment2_l':         return FB_PIGMENT_PRICE[mix.pigments.pigment2_name] || 0;
+            case 'pigment1_kg': {
+                const mode = (calculator.state.settings && calculator.state.settings.pigmentUnitMode) || 'lb';
+                return mode === 'lb' ? FB_PIGMENT_PRICE_PER_LB : FB_PIGMENT_PRICE_PER_KG;
+            }
+            case 'pigment2_kg': {
+                const mode2 = (calculator.state.settings && calculator.state.settings.pigmentUnitMode) || 'lb';
+                return mode2 === 'lb' ? FB_PIGMENT_PRICE_PER_LB : FB_PIGMENT_PRICE_PER_KG;
+            }
             default:                   return 0;
         }
     };
@@ -1827,7 +1961,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const mix = calculator.getActiveMix();
         const qty = calculator.state.project.quantity * calculator.state.project.waste;
         if (qty <= 0) return [];
-        const ppd = calculator.state.project.paversPerDay || 0;
+        const ppd = ((fbInvState['productionTarget' + fbInvState.productionMode.charAt(0).toUpperCase() + fbInvState.productionMode.slice(1)] || 0) || calculator.state.project.paversPerDay || 0);
         const produced = fbInvState.produced;
         const linked = fbInvState.linked;
 
@@ -1867,8 +2001,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (adm.macroFibreKg > 0)     items.push(make('macro_fibre', 'Macro Fibre', 'macro_fibre_kg', adm.macroFibreKg));
         if (adm.waterReducerKg > 0)   items.push(make('water_reducer', 'Water Reducer', 'water_reducer_kg', adm.waterReducerKg));
         if (adm.hardenerKg > 0)       items.push(make('hardener', 'Hardener', 'hardener_kg', adm.hardenerKg));
-        if (pig.pigment1L > 0)        items.push(make('pigment1', mix.pigments.pigment1_name, 'pigment1_l', pig.pigment1L));
-        if (pig.pigment2L > 0)        items.push(make('pigment2', mix.pigments.pigment2_name, 'pigment2_l', pig.pigment2L));
+        if (pig.pigment1Kg > 0)        items.push(make('pigment1', mix.pigments.pigment1_name, 'pigment1_kg', pig.pigment1Kg));
+        if (pig.pigment2Kg > 0)        items.push(make('pigment2', mix.pigments.pigment2_name, 'pigment2_kg', pig.pigment2Kg));
         return items;
     };
 
@@ -1905,29 +2039,45 @@ document.addEventListener('DOMContentLoaded', () => {
         const el = document.getElementById('inv-summary-card');
         if (!el) return;
         if (!fbInvState.linked) { el.style.display = 'none'; return; }
-        const actionable = materials.filter(m => m.linked && fbInvIsActionable(m.stockKey) && m.stock > 0);
-        if (!actionable.length) { el.style.display = 'none'; return; }
         el.style.display = 'block';
 
-        let bottleneck = null, minDays = null;
-        actionable.forEach(m => {
-            if (m.daysRemaining !== null && m.remaining > 0 && (minDays === null || m.daysRemaining < minDays)) {
-                minDays = m.daysRemaining; bottleneck = m;
-            }
-        });
+        // ALL actionable materials — including depleted
+        const actionable = materials.filter(m => m.linked && fbInvIsActionable(m.stockKey));
 
-        const ppd = calculator.state.project.paversPerDay || 0;
+        // All materials with daily usage, depleted-first then ascending days
+        const runwayMaterials = actionable
+            .filter(m => m.dailyUsage > 0)
+            .map(m => ({
+                name: m.name,
+                daysRemaining: (m.stock <= 0 || m.remaining <= 0) ? 0 : Math.max(0, m.daysRemaining || 0),
+                isDepleted: m.stock <= 0 || m.remaining <= 0,
+            }))
+            .sort((a, b) => a.daysRemaining - b.daysRemaining);
+
+        const minDays = runwayMaterials.length > 0 ? runwayMaterials[0].daysRemaining : null;
+
+        const ppd = ((fbInvState['productionTarget' + fbInvState.productionMode.charAt(0).toUpperCase() + fbInvState.productionMode.slice(1)] || 0) || calculator.state.project.paversPerDay || 0);
         const dailyCost = materials.reduce((s, m) => s + (m.linked && m.perPaver ? m.perPaver * ppd * fbInvGetPrice(m.stockKey) : 0), 0);
-        const restockCost = materials.reduce((s, m) => s + (m.stock > 0 ? m.stock * fbInvGetPrice(m.stockKey) : 0), 0);
 
-        const runwayHtml = bottleneck
-            ? `<div class="result-row"><span class="result-label">Production Runway</span><span class="result-value" style="font-weight:700;">${minDays.toFixed(1)} days</span></div>
-               <div class="result-row"><span class="result-label">Limited By</span><span class="result-value">${bottleneck.name}</span></div>`
-            : `<div class="result-row"><span class="result-label">Production Runway</span><span class="result-value" style="color:var(--text-secondary);">\u2014</span></div>`;
+        let runwayHtml;
+        if (runwayMaterials.length === 0) {
+            runwayHtml = `<div class="result-row"><span class="result-label">Production Runway</span><span class="result-value" style="color:var(--text-secondary);">\u2014</span></div>`;
+        } else {
+            const runwayVal = minDays !== null ? `${minDays.toFixed(1)} days` : '\u2014';
+            const limitedByHtml = runwayMaterials.map(m => {
+                const daysText = m.isDepleted ? 'DEPLETED' : `${m.daysRemaining.toFixed(1)}d`;
+                const style = m.isDepleted || m.daysRemaining <= 2
+                    ? 'color:var(--error-color);font-weight:600;'
+                    : 'color:var(--text-secondary);';
+                return `<div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="font-size:0.82rem;">${m.name}</span><span style="font-size:0.82rem;${style}">${daysText}</span></div>`;
+            }).join('');
+
+            runwayHtml = `<div class="result-row"><span class="result-label">Production Runway</span><span class="result-value" style="font-weight:700;">${runwayVal}</span></div>
+                <div style="margin:6px 0 8px;"><div class="result-label" style="margin-bottom:4px;">Limited By</div>${limitedByHtml}</div>`;
+        }
 
         el.innerHTML = `<h2 class="card-title">Stock Summary</h2>${runwayHtml}
-            <div class="result-row"><span class="result-label">Daily Material Cost</span><span class="result-value">${fbInvFmtC(dailyCost)}</span></div>
-            <div class="result-row"><span class="result-label">Restock Cost</span><span class="result-value">${fbInvFmtC(restockCost)}</span></div>`;
+            <div class="result-row"><span class="result-label">Daily Material Cost</span><span class="result-value">${fbInvFmtC(dailyCost)}</span></div>`;
     };
 
     const fbInvRender = () => {
@@ -1958,11 +2108,36 @@ document.addEventListener('DOMContentLoaded', () => {
             html += `<div class="card"><div class="inventory-group-label">${group.label}</div>`;
             gm.forEach(m => {
                 const unit = fbInvGetUnit(m.stockKey);
+                const isDepleted = m.stock <= 0 || m.remaining <= 0;
+                const isLow = m.daysRemaining !== null && m.daysRemaining > 0 && m.daysRemaining <= 2;
+                const alwaysShow = fbInvState.alwaysShowPurchase || false;
+                const showPill = m.linked && (alwaysShow || isDepleted || isLow);
+                const pillClass = alwaysShow && isDepleted ? ' purchase-glow-empty' : alwaysShow && isLow ? ' purchase-glow-low' : '';
+
                 html += `<div class="inventory-item" data-inv-key="${m.key}">`;
-                html += `<div class="inventory-item-header"><span class="inventory-item-name">${m.name}</span><span class="inventory-status" id="inv-status-${m.key}">--</span></div>`;
+                html += `<div class="inventory-item-header"><span class="inventory-item-name">${m.name}</span>`;
+                if (showPill) {
+                    html += `<div class="inv-purchase-pill${pillClass}" id="inv-purchase-pill-${m.key}">`;
+                    html += `<span class="inv-purchase-label">Purchase</span>`;
+                    html += `<button class="inv-purchase-btn inv-purchase-dec" data-key="${m.key}">−</button>`;
+                    html += `<span class="inv-purchase-qty" id="inv-purchase-qty-${m.key}">0</span>`;
+                    html += `<span class="inv-purchase-unit">${unit}</span>`;
+                    html += `<button class="inv-purchase-btn inv-purchase-inc" data-key="${m.key}">+</button>`;
+                    html += `<span class="inv-purchase-days" id="inv-purchase-days-${m.key}"></span>`;
+                    html += `</div>`;
+                }
+                html += `<span class="inventory-status" id="inv-status-${m.key}">--</span></div>`;
                 html += `<div class="input-group" style="margin-bottom:8px;"><label class="input-label">Stock on Hand</label><div class="input-row">`;
                 html += `<input type="number" id="inv-stock-${m.key}" class="input-number" value="${m.stock}" min="0" step="0.1" data-stock-key="${m.stockKey}">`;
-                html += `<span class="input-unit">${unit}</span></div></div>`;
+                html += `<span class="input-unit">${unit}</span></div>`;
+                if (m.stockKey.endsWith('_yd3') && fbGetYd3PerBag(m.stockKey) > 0) {
+                    const bags = fbYd3ToBags(m.stock, m.stockKey);
+                    html += `<div class="input-row" style="margin-top:4px;">`;
+                    html += `<input type="number" id="inv-bags-${m.key}" class="input-number" value="${bags !== null ? bags.toFixed(2) : ''}" min="0" step="0.01" placeholder="bags" data-bags-key="${m.key}" data-stock-key="${m.stockKey}">`;
+                    html += `<span class="input-unit">bags</span></div>`;
+                    html += `<p style="font-size:0.7rem;color:var(--text-secondary);margin:2px 0 0;">${fbGetYd3PerBag(m.stockKey)} yd³/bag</p>`;
+                }
+                html += `</div>`;
                 if (m.linked) {
                     html += `<div class="result-row"><span class="result-label">Per Paver</span><span class="result-value" id="inv-pp-${m.key}">--</span></div>`;
                     html += `<div class="result-row"><span class="result-label">Used Today</span><span class="result-value" id="inv-used-${m.key}">--</span></div>`;
@@ -1978,23 +2153,75 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         container.innerHTML = html;
 
-        container.querySelectorAll('input[data-stock-key]').forEach(input => {
+        container.querySelectorAll('input[data-stock-key]:not([data-bags-key])').forEach(input => {
             input.addEventListener('input', (e) => {
-                fbInvState.stock[e.target.dataset.stockKey] = parseFloat(e.target.value) || 0;
+                const stockKey = e.target.dataset.stockKey;
+                const yd3Val = parseFloat(e.target.value) || 0;
+                fbInvState.stock[stockKey] = yd3Val;
+                if (stockKey.endsWith('_yd3')) {
+                    const matKey = stockKey.slice(0, -4);
+                    const bagsEl = document.getElementById(`inv-bags-${matKey}`);
+                    if (bagsEl) {
+                        const bags = fbYd3ToBags(yd3Val, stockKey);
+                        if (bags !== null) bagsEl.value = bags.toFixed(2);
+                    }
+                }
                 fbInvSave();
                 const mats = fbInvBuildMaterials();
                 mats.forEach(fbInvUpdateStatus);
                 fbInvRenderSummary(mats);
+                mats.forEach(fbInvUpdatePurchaseRow);
+            });
+        });
+
+        container.querySelectorAll('input[data-bags-key]').forEach(input => {
+            input.addEventListener('input', (e) => {
+                const stockKey = e.target.dataset.stockKey;
+                const key = e.target.dataset.bagsKey;
+                const bags = parseFloat(e.target.value) || 0;
+                const yd3Val = fbBagsToYd3(bags, stockKey) || 0;
+                fbInvState.stock[stockKey] = yd3Val;
+                const yd3El = document.getElementById(`inv-stock-${key}`);
+                if (yd3El) yd3El.value = yd3Val.toFixed(3);
+                fbInvSave();
+                const mats = fbInvBuildMaterials();
+                mats.forEach(fbInvUpdateStatus);
+                fbInvRenderSummary(mats);
+                mats.forEach(fbInvUpdatePurchaseRow);
+            });
+        });
+
+        // Purchase pill +/- buttons
+        container.querySelectorAll('.inv-purchase-dec, .inv-purchase-inc').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const key = e.target.dataset.key;
+                const mat = materials.find(m => m.key === key);
+                if (!mat) return;
+                if (!fbInvState.purchaseQtys) fbInvState.purchaseQtys = {};
+                const current = fbInvState.purchaseQtys[key] || 0;
+                const step = mat.stockKey.endsWith('_bags') ? 1 : mat.stockKey.endsWith('_yd3') ? 0.25 : 0.1;
+                fbInvState.purchaseQtys[key] = Math.max(0, parseFloat((current + (e.target.classList.contains('inv-purchase-inc') ? step : -step)).toFixed(2)));
+                const qtyEl = document.getElementById(`inv-purchase-qty-${key}`);
+                if (qtyEl) qtyEl.textContent = fbInvState.purchaseQtys[key].toFixed(mat.stockKey.endsWith('_yd3') ? 2 : mat.stockKey.endsWith('_bags') ? 0 : 1);
+                // Update days gained display
+                const daysEl = document.getElementById(`inv-purchase-days-${key}`);
+                if (daysEl && fbInvState.purchaseQtys[key] > 0 && mat.dailyUsage > 0) {
+                    daysEl.textContent = `+${(fbInvState.purchaseQtys[key] / mat.dailyUsage).toFixed(1)}d`;
+                } else if (daysEl) {
+                    daysEl.textContent = '';
+                }
+                fbInvSave();
             });
         });
 
         materials.forEach(fbInvUpdateStatus);
+        materials.forEach(fbInvUpdatePurchaseRow);
         fbInvRenderSummary(materials);
     };
 
     const fbInvUpdate = () => {
         const rateEl = document.getElementById('inventory-daily-rate');
-        if (rateEl) rateEl.textContent = `${calculator.state.project.paversPerDay || 0} pavers/day`;
+        if (rateEl) rateEl.textContent = `${((fbInvState['productionTarget' + fbInvState.productionMode.charAt(0).toUpperCase() + fbInvState.productionMode.slice(1)] || 0) || calculator.state.project.paversPerDay || 0)} pavers/day`;
         const orderSection = document.getElementById('purchase-order-section');
         if (orderSection) orderSection.style.display = fbInvState.linked ? 'block' : 'none';
         fbInvRender();
@@ -2072,6 +2299,52 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Production mode cycle button + separate target inputs
+    const _fbProdModes = ['daily', 'weekly', 'monthly'];
+    const _fbProdModeLabels = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
+    const fbProdCycleBtn = document.getElementById('prod-mode-cycle');
+    const fbProdModeLabel = document.getElementById('prod-mode-label');
+    const fbProdGroups = {
+        daily:   document.getElementById('prod-target-daily-group'),
+        weekly:  document.getElementById('prod-target-weekly-group'),
+        monthly: document.getElementById('prod-target-monthly-group'),
+    };
+    const fbProdInputs = {
+        daily:   document.getElementById('production-target-daily'),
+        weekly:  document.getElementById('production-target-weekly'),
+        monthly: document.getElementById('production-target-monthly'),
+    };
+    const fbFk = (m) => 'productionTarget' + m.charAt(0).toUpperCase() + m.slice(1);
+    const fbSyncProdModeUI = () => {
+        const mode = fbInvState.productionMode;
+        if (fbProdModeLabel) fbProdModeLabel.textContent = _fbProdModeLabels[mode];
+        ['daily','weekly','monthly'].forEach(m => {
+            if (fbProdGroups[m]) fbProdGroups[m].style.display = m === mode ? '' : 'none';
+            if (fbProdInputs[m]) fbProdInputs[m].value = fbInvState[fbFk(m)] || 0;
+        });
+        const rateEl = document.getElementById('inventory-daily-rate');
+        if (rateEl) rateEl.textContent = (fbInvState[fbFk(mode)] || calculator.state.project.paversPerDay || 0) + ' pavers/day';
+    };
+    if (fbProdCycleBtn) {
+        fbProdCycleBtn.addEventListener('click', () => {
+            const idx = _fbProdModes.indexOf(fbInvState.productionMode);
+            fbInvState.productionMode = _fbProdModes[(idx + 1) % _fbProdModes.length];
+            fbSyncProdModeUI();
+            fbInvSave();
+            fbInvUpdate();
+        });
+    }
+    ['daily','weekly','monthly'].forEach(m => {
+        const el = fbProdInputs[m];
+        if (!el) return;
+        el.addEventListener('input', (e) => {
+            fbInvState[fbFk(m)] = parseFloat(e.target.value) || 0;
+            fbInvSave();
+            fbInvUpdate();
+        });
+    });
+    fbSyncProdModeUI();
+
     const fbClearTodayEl = document.getElementById('btn-clear-today');
     if (fbClearTodayEl) {
         fbClearTodayEl.addEventListener('click', () => {
@@ -2098,4 +2371,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial inventory render
     fbInvUpdate();
+};
+
+// Also trigger via DOMContentLoaded for watchdog path (overlay still visible after timeout)
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.__fallbackActive) window.activateFallback();
 });

@@ -1,7 +1,13 @@
-# Rust build artifacts
-wasm/target/
+# Ignore everything at root level
+/*
 
-# OS junk
-Thumbs.db
-Desktop.ini
-.DS_Store
+# Except the sprat folder and sprat-pwa
+!/sprat/
+!/sprat/sprat-pwa/
+!/sprat/sprat-pwa/**
+.gitignore
+sprat/Concrete_Water_Reducer_V12.xlsx
+sprat/concretecalculator.jsx
+sprat/Crosscheck_Report_TSX_vs_V12.md
+sprat/InventoryTab.txt
+sprat/remixed-3803fb7a.tsx

@@ -98,6 +98,13 @@
                         </div>
                     </div>
                     <div class="input-group">
+                        <label class="input-label">Thickness</label>
+                        <div class="input-row">
+                            <input type="number" id="project-thickness" class="input-number" value="2" min="0.5" step="0.25">
+                            <span class="input-unit">in</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
                         <label class="input-label">Waste/Overage Factor</label>
                         <div class="input-row">
                             <input type="number" id="project-waste" class="input-number" value="1.1" min="1" max="2" step="0.05">
@@ -455,6 +462,13 @@
                         </div>
                     </div>
                     <div class="input-group">
+                        <label class="input-label">Bag size (yd³/bag, 0=off)</label>
+                        <div class="input-row">
+                            <input type="number" id="bag-yd3-sand" class="input-number" value="0" min="0" step="1">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
                         <label class="input-label">Purchase qty (yd³)</label>
                         <div class="input-row">
                             <input type="number" id="pqty-sand" class="input-number" value="1" min="0.25" step="0.25">
@@ -476,6 +490,13 @@
                         </div>
                     </div>
                     <div class="input-group">
+                        <label class="input-label">Bag size (yd³/bag, 0=off)</label>
+                        <div class="input-row">
+                            <input type="number" id="bag-yd3-stone-dust" class="input-number" value="122" min="0" step="1">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
                         <label class="input-label">Purchase qty (yd³)</label>
                         <div class="input-row">
                             <input type="number" id="pqty-stone-dust" class="input-number" value="1" min="0.25" step="0.25">
@@ -494,6 +515,13 @@
                         <div class="input-row">
                             <input type="number" id="price-gcc400" class="input-number" value="17891" min="0" step="10">
                             <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Bag size (yd³/bag, 0=off)</label>
+                        <div class="input-row">
+                            <input type="number" id="bag-yd3-gcc400" class="input-number" value="0" min="0" step="1">
+                            <span class="input-unit">yd³</span>
                         </div>
                     </div>
                     <div class="input-group">
@@ -523,6 +551,13 @@
                         </div>
                     </div>
                     <div class="input-group">
+                        <label class="input-label">Bag size (yd³/bag, 0=off)</label>
+                        <div class="input-row">
+                            <input type="number" id="bag-yd3-regular-gravel" class="input-number" value="0" min="0" step="1">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
                         <label class="input-label">Purchase qty (yd³)</label>
                         <div class="input-row">
                             <input type="number" id="pqty-regular-gravel" class="input-number" value="1" min="0.25" step="0.25">
@@ -541,6 +576,13 @@
                         <div class="input-row">
                             <input type="number" id="price-chip-gravel" class="input-number" value="4000" min="0" step="100">
                             <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Bag size (yd³/bag, 0=off)</label>
+                        <div class="input-row">
+                            <input type="number" id="bag-yd3-chip-gravel" class="input-number" value="0" min="0" step="1">
+                            <span class="input-unit">yd³</span>
                         </div>
                     </div>
                     <div class="input-group">
@@ -565,6 +607,13 @@
                         </div>
                     </div>
                     <div class="input-group">
+                        <label class="input-label">Bag size (yd³/bag, 0=off)</label>
+                        <div class="input-row">
+                            <input type="number" id="bag-yd3-white-gravel" class="input-number" value="0" min="0" step="1">
+                            <span class="input-unit">yd³</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
                         <label class="input-label">Purchase qty (yd³)</label>
                         <div class="input-row">
                             <input type="number" id="pqty-white-gravel" class="input-number" value="1" min="0.25" step="0.25">
@@ -583,6 +632,13 @@
                         <div class="input-row">
                             <input type="number" id="price-white-lime" class="input-number" value="55" min="0" step="10">
                             <span class="input-unit">JMD</span>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">Bag size (yd³/bag, 0=off)</label>
+                        <div class="input-row">
+                            <input type="number" id="bag-yd3-white-lime" class="input-number" value="0" min="0" step="1">
+                            <span class="input-unit">yd³</span>
                         </div>
                     </div>
                     <div class="input-group">
@@ -829,17 +885,44 @@
 
                 <!-- Daily Production card -->
                 <div class="card">
-                    <h2 class="card-title"><span class="icon" id="icon-inventory-production"></span> Daily Production</h2>
+                    <h2 class="card-title"><span class="icon" id="icon-inventory-production"></span> Production</h2>
+                    <div style="margin-bottom:12px;">
+                        <button id="prod-mode-cycle" style="width:100%;padding:7px 12px;border:1px solid var(--border-color);border-radius:var(--radius-md);background:var(--bg-card);color:var(--text-primary);font-size:0.875rem;cursor:pointer;text-align:left;">Mode: <strong id="prod-mode-label">Daily</strong></button>
+                    </div>
+                    <div class="input-group" id="prod-target-daily-group">
+                        <label class="input-label">Target Pavers Today</label>
+                        <div class="input-row">
+                            <input type="number" id="production-target-daily" class="input-number" value="0" min="0" step="1" placeholder="e.g. 100">
+                            <span class="input-unit">pavers</span>
+                        </div>
+                        <p class="help-text">How many pavers you plan to produce today.</p>
+                    </div>
+                    <div class="input-group" id="prod-target-weekly-group" style="display:none;">
+                        <label class="input-label">Target Pavers This Week</label>
+                        <div class="input-row">
+                            <input type="number" id="production-target-weekly" class="input-number" value="0" min="0" step="1" placeholder="e.g. 700">
+                            <span class="input-unit">pavers</span>
+                        </div>
+                        <p class="help-text">How many pavers you plan to produce this week.</p>
+                    </div>
+                    <div class="input-group" id="prod-target-monthly-group" style="display:none;">
+                        <label class="input-label">Target Pavers This Month</label>
+                        <div class="input-row">
+                            <input type="number" id="production-target-monthly" class="input-number" value="0" min="0" step="1" placeholder="e.g. 3000">
+                            <span class="input-unit">pavers</span>
+                        </div>
+                        <p class="help-text">How many pavers you plan to produce this month.</p>
+                    </div>
                     <div class="input-group">
-                        <label class="input-label">Pavers Produced Today</label>
+                        <label class="input-label" id="pavers-produced-label">Pavers Produced So Far (This Period)</label>
                         <div class="input-row">
                             <input type="number" id="inventory-pavers-today" class="input-number" value="0" min="0" step="1">
                             <span class="input-unit">pavers</span>
                         </div>
                     </div>
-                    <div class="result-row">
-                        <span class="result-label">Daily Production Rate (from Project)</span>
-                        <span class="result-value" id="inventory-daily-rate">--</span>
+                    <div class="info-box">
+                        <div class="info-label" id="production-rate-label">Daily Rate (from Project tab)</div>
+                        <div class="info-value" id="inventory-daily-rate">--</div>
                     </div>
                 </div>
 
@@ -861,6 +944,9 @@
                     <button id="btn-clear-today" class="btn-secondary" style="margin-top:12px;">Clear Today</button>
                 </div>
 
+                <!-- Project Progress card (JS-populated) -->
+                <div id="inv-project-progress" class="card" style="display:none;"></div>
+
                 <!-- Summary card (JS-populated) -->
                 <div id="inv-summary-card" class="card" style="display:none;"></div>
 
@@ -878,6 +964,14 @@
                 <!-- Purchase Order section -->
                 <div id="purchase-order-section" class="card" style="display:none;">
                     <h2 class="card-title"><span class="icon" id="icon-inventory-order"></span> Purchase Order</h2>
+                    <div class="input-group">
+                        <label class="input-label">Days of Production Needed</label>
+                        <div class="input-row">
+                            <input type="number" id="days-multiplier" class="input-number" value="" min="0" step="1" placeholder="e.g. 5">
+                            <span class="input-unit">days</span>
+                        </div>
+                        <p class="help-text" id="days-multiplier-hint" style="margin-top:4px;font-size:0.75rem;color:var(--text-secondary);"></p>
+                    </div>
                     <div class="input-group">
                         <label class="input-label">Target Additional Pavers</label>
                         <div class="input-row">
@@ -949,8 +1043,8 @@
     </div>
 
     <!-- Import WASM Module -->
-    <script type="module" src="js/icons.js"></script>
-    <script type="module" src="js/app.js"></script>
+    <script src="js/icons.js"></script>
+    <script src="js/app.js" type="text/javascript"></script>
     <!-- Supplier management (shared across all paths) -->
     <script src="js/suppliers.js"></script>
     <!-- Purchase Order engine (shared across all paths) -->
@@ -1313,7 +1407,7 @@
                     btnResetPrices.addEventListener('click', function() {
                         if (btnResetPrices.getAttribute('data-confirm') === '1') {
                             cancelReset();
-                            calc.state.prices = { portland: 1750, white: 3810, sand: 5000, stoneDust: 1800, gcc400: 17891, regularGravel: 4000, chipGravel: 4000, whiteGravel: 1600, whiteLime: 55, microFibre: 1622.6, macroFibre: 2200, waterReducer: 1378.34, hardener: 0, portlandPqty: 1, whitePqty: 1, sandPqty: 1, stoneDustPqty: 1, gcc400Pqty: 1, regularGravelPqty: 1, chipGravelPqty: 1, whiteGravelPqty: 1, whiteLimePqty: 1, microFibrePqty: 1, macroFibrePqty: 1, waterReducerPqty: 1, hardenerPqty: 1, waterPqty: 1000, waterUnlimited: true };
+                            calc.state.prices = { portland: 1750, white: 3810, sand: 600, stoneDust: 180, gcc400: 600, regularGravel: 600, chipGravel: 600, whiteGravel: 1600, whiteLime: 55, microFibre: 1622.6, macroFibre: 2200, waterReducer: 1378.34, hardener: 0, portlandPqty: 1, whitePqty: 1, sandPqty: 1, stoneDustPqty: 1, gcc400Pqty: 1, regularGravelPqty: 1, chipGravelPqty: 1, whiteGravelPqty: 1, whiteLimePqty: 1, microFibrePqty: 1, macroFibrePqty: 1, waterReducerPqty: 1, hardenerPqty: 1, waterPqty: 1000, waterUnlimited: true };
                             (function() {
                                 var p = calc.state.prices;
                                 var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v; };

@@ -1,5 +1,5 @@
 // Service Worker for Concrete Mix Calculator PWA
-const CACHE_NAME = 'concrete-calc-v29';
+const CACHE_NAME = 'concrete-calc-v41';
 const urlsToCache = [
   '/',
   '/index.html',
