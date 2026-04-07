@@ -1,4 +1,21 @@
-import wasmInit, { calculate_all, get_pigment_options } from 'sprat-pwa';
+// WASM module functions — populated by dynamic import at init time
+// This pattern works both as a regular script (file://) and as a module
+var wasmInit, calculate_all, get_pigment_options;
+
+// Version marker — if you see this in console, the new code is loaded
+console.log('[Sprat] v41 loaded — fix bags input cache, fix always-show purchase for in-stock items');
+
+// Load WASM module dynamically (works on file://)
+async function loadWasmModule() {
+    try {
+        const sprat = await import('./wasm/pkg/sprat_pwa.js');
+        wasmInit = sprat.default || sprat.wasmInit;
+        calculate_all = sprat.calculate_all;
+        get_pigment_options = sprat.get_pigment_options;
+    } catch (e) {
+        console.error('[Sprat] Failed to load WASM module, fallback will activate:', e);
+    }
+}
 
 // State management
 const state = {
@@ -59,6 +76,14 @@ const state = {
         hardener_pqty: 1,
         water_pqty: 1000,
         water_unlimited: true,
+        // Bag size (yd³ per bag) for aggregate materials — 0 = no bag display
+        bag_yd3_sand: 0,
+        bag_yd3_stone_dust: 122,
+        bag_yd3_gcc400: 0,
+        bag_yd3_regular_gravel: 0,
+        bag_yd3_chip_gravel: 0,
+        bag_yd3_white_gravel: 0,
+        bag_yd3_white_lime: 0,
         // Reorder points (0 = disabled)
         reorder_portland: 0,
         reorder_white: 0,
@@ -81,6 +106,8 @@ const state = {
         business_email: '',
         business_tax_id: '',
         tax_rate: 15,
+        coarse_unit_mode: 'bags',  // 'bags' | 'yards'
+        pigment_unit_mode: 'lb',   // 'lb' | 'kg'
     },
     results: null,
     no_costs: false,
@@ -91,6 +118,12 @@ const state = {
         always_show_purchase: false,
         purchase_qtys: {},
         target_additional_pavers: 0,
+        days_multiplier: 0,
+        production_mode: 'daily',
+        production_target_daily: 0,
+        production_target_weekly: 0,
+        production_target_monthly: 0,
+        water_unlimited: true,
         stock: {
             portland_bags: 0,
             white_bags: 0,
@@ -108,8 +141,8 @@ const state = {
             macro_fibre_kg: 0,
             water_reducer_kg: 0,
             hardener_kg: 0,
-            pigment1_l: 0,
-            pigment2_l: 0,
+            pigment1_kg: 0,
+            pigment2_kg: 0,
         },
     },
 };
@@ -362,6 +395,21 @@ const formatMilliliters = (ml) => {
 const formatLiters = (l) => {
     if (l === undefined || l === null || isNaN(l)) return '0 L';
     return `${formatNum(l, 3)} L`;
+};
+
+// yd³ per bag for aggregate materials — reads from state.prices, configurable in Settings.
+// Stone Dust default: 122 yd³/bag (per user specification). Others: 0 (disabled).
+const getYd3PerBag = (stockKey) => {
+    const k = stockKey.replace('_b_yd3', '_yd3').replace('_c_yd3', '_yd3');
+    return state.prices['bag_yd3_' + k.replace('_yd3', '')] || 0;
+};
+const yd3ToBags = (yd3, stockKey) => {
+    const ypb = getYd3PerBag(stockKey);
+    return ypb > 0 ? yd3 / ypb : null;
+};
+const bagsToYd3 = (bags, stockKey) => {
+    const ypb = getYd3PerBag(stockKey);
+    return ypb > 0 ? bags * ypb : null;
 };
 
 // State update functions
@@ -910,19 +958,19 @@ const setupEventListeners = () => {
         const hn = document.getElementById('header-project-name');
         if (hn) hn.textContent = e.target.value || 'Concrete Mix Calculator';
     });
-    elements.projectLength.addEventListener('input', (e) => updateState('project.length', parseFloat(e.target.value) || 0));
-    elements.projectWidth.addEventListener('input', (e) => updateState('project.width', parseFloat(e.target.value) || 0));
-    elements.projectThickness.addEventListener('input', (e) => updateState('project.thickness', parseFloat(e.target.value) || 0));
-    elements.projectQuantity.addEventListener('input', (e) => updateState('project.quantity', parseFloat(e.target.value) || 0));
-    elements.projectWaste.addEventListener('input', (e) => {
+    if (elements.projectLength) elements.projectLength.addEventListener('input', (e) => updateState('project.length', parseFloat(e.target.value) || 0));
+    if (elements.projectWidth) elements.projectWidth.addEventListener('input', (e) => updateState('project.width', parseFloat(e.target.value) || 0));
+    if (elements.projectThickness) elements.projectThickness.addEventListener('input', (e) => updateState('project.thickness', parseFloat(e.target.value) || 0));
+    if (elements.projectQuantity) elements.projectQuantity.addEventListener('input', (e) => updateState('project.quantity', parseFloat(e.target.value) || 0));
+    if (elements.projectWaste) elements.projectWaste.addEventListener('input', (e) => {
         const v = Math.min(2, Math.max(1, parseFloat(e.target.value) || 1));
         e.target.value = v;
         updateState('project.waste_factor', v);
     });
-    elements.projectPaversPerDay.addEventListener('input', (e) => updateState('project.pavers_per_day', parseFloat(e.target.value) || 0));
-    elements.projectWorkers.addEventListener('input', (e) => updateState('project.workers', Math.max(1, parseInt(e.target.value) || 1)));
-    elements.projectWageRate.addEventListener('input', (e) => updateState('project.wage_rate', parseFloat(e.target.value) || 0));
-    elements.projectTransport.addEventListener('input', (e) => updateState('project.raw_material_transport', parseFloat(e.target.value) || 0));
+    if (elements.projectPaversPerDay) elements.projectPaversPerDay.addEventListener('input', (e) => updateState('project.pavers_per_day', parseFloat(e.target.value) || 0));
+    if (elements.projectWorkers) elements.projectWorkers.addEventListener('input', (e) => updateState('project.workers', Math.max(1, parseInt(e.target.value) || 1)));
+    if (elements.projectWageRate) elements.projectWageRate.addEventListener('input', (e) => updateState('project.wage_rate', parseFloat(e.target.value) || 0));
+    if (elements.projectTransport) elements.projectTransport.addEventListener('input', (e) => updateState('project.raw_material_transport', parseFloat(e.target.value) || 0));
     const projectSellingPrice = document.getElementById('project-selling-price');
     if (projectSellingPrice) projectSellingPrice.addEventListener('input', (e) => updateState('project.selling_price', parseFloat(e.target.value) || 0));
 
@@ -937,19 +985,18 @@ const setupEventListeners = () => {
 
 
     // Prices
-    elements.pricePortland.addEventListener('input', (e) => updateState('prices.portland_bag', parseFloat(e.target.value) || 0));
-    elements.priceWhite.addEventListener('input', (e) => updateState('prices.white_bag', parseFloat(e.target.value) || 0));
-    elements.priceSand.addEventListener('input', (e) => updateState('prices.sand', parseFloat(e.target.value) || 0));
-    elements.priceStoneDust.addEventListener('input', (e) => updateState('prices.stone_dust', parseFloat(e.target.value) || 0));
-    elements.priceGcc400.addEventListener('input', (e) => updateState('prices.gcc400', parseFloat(e.target.value) || 0));
-    elements.priceRegularGravel.addEventListener('input', (e) => updateState('prices.regular_gravel', parseFloat(e.target.value) || 0));
-    elements.priceChipGravel.addEventListener('input', (e) => updateState('prices.chip_gravel', parseFloat(e.target.value) || 0));
-    elements.priceWhiteGravel.addEventListener('input', (e) => updateState('prices.white_gravel', parseFloat(e.target.value) || 0));
-    elements.priceWhiteLime.addEventListener('input', (e) => updateState('prices.white_lime', parseFloat(e.target.value) || 0));
-    elements.priceMicroFibre.addEventListener('input', (e) => updateState('prices.micro_fibre', parseFloat(e.target.value) || 0));
-    elements.priceMacroFibre.addEventListener('input', (e) => updateState('prices.macro_fibre', parseFloat(e.target.value) || 0));
-    elements.priceWaterReducer.addEventListener('input', (e) => updateState('prices.water_reducer', parseFloat(e.target.value) || 0));
-    elements.priceHardener.addEventListener('input', (e) => updateState('prices.hardener', parseFloat(e.target.value) || 0));
+    const _priceBindings = [
+        ['pricePortland', 'prices.portland_bag'], ['priceWhite', 'prices.white_bag'],
+        ['priceSand', 'prices.sand'], ['priceStoneDust', 'prices.stone_dust'],
+        ['priceGcc400', 'prices.gcc400'], ['priceRegularGravel', 'prices.regular_gravel'],
+        ['priceChipGravel', 'prices.chip_gravel'], ['priceWhiteGravel', 'prices.white_gravel'],
+        ['priceWhiteLime', 'prices.white_lime'], ['priceMicroFibre', 'prices.micro_fibre'],
+        ['priceMacroFibre', 'prices.macro_fibre'], ['priceWaterReducer', 'prices.water_reducer'],
+        ['priceHardener', 'prices.hardener'],
+    ];
+    _priceBindings.forEach(([elKey, stateKey]) => {
+        if (elements[elKey]) elements[elKey].addEventListener('input', (e) => updateState(stateKey, parseFloat(e.target.value) || 0));
+    });
 
     // Purchase qty listeners
     const pqtyPairs = [
@@ -992,9 +1039,20 @@ const setupEventListeners = () => {
         if (el) el.addEventListener('input', (e) => updateState(key, parseFloat(e.target.value) || 0));
     });
 
+    // Bag size (yd³/bag) listeners — wired directly by DOM id
+    ['sand', 'stone_dust', 'gcc400', 'regular_gravel', 'chip_gravel', 'white_gravel', 'white_lime'].forEach(mat => {
+        const el = document.getElementById(`bag-yd3-${mat.replace(/_/g, '-')}`);
+        if (el) el.addEventListener('input', (e) => {
+            state.prices[`bag_yd3_${mat}`] = parseFloat(e.target.value) || 0;
+            saveState();
+            _inventoryMaterialKeys = ''; // force full re-render so bags inputs appear/disappear
+            updateInventoryTab();
+        });
+    });
+
     // Water unlimited toggle
     const applyWaterUnlimited = (val) => {
-        state.prices.water_unlimited = val;
+        state.inventory.water_unlimited = val;
         if (elements.toggleWaterUnlimited) {
             elements.toggleWaterUnlimited.setAttribute('aria-checked', String(val));
             elements.toggleWaterUnlimited.classList.toggle('active', val);
@@ -1003,10 +1061,11 @@ const setupEventListeners = () => {
         }
         if (elements.waterPurchaseFields) elements.waterPurchaseFields.style.display = val ? 'none' : 'block';
         saveState();
+        saveInventory();
         renderInventoryUI();
     };
     if (elements.toggleWaterUnlimited) {
-        elements.toggleWaterUnlimited.addEventListener('click', () => applyWaterUnlimited(!state.prices.water_unlimited));
+        elements.toggleWaterUnlimited.addEventListener('click', () => applyWaterUnlimited(!state.inventory.water_unlimited));
     }
 
     // Business identity + tax inputs
@@ -1019,7 +1078,7 @@ const setupEventListeners = () => {
     const taxRateEl = document.getElementById('tax-rate');
     if (taxRateEl) taxRateEl.addEventListener('input', () => { state.settings.tax_rate = parseFloat(taxRateEl.value) || 0; saveState(); });
 
-    {
+    if (elements.btnResetPrices) {
         let resetConfirmTimer = null;
         let resetOutsideListener = null;
         const cancelResetConfirm = () => {
@@ -1062,11 +1121,19 @@ const setupEventListeners = () => {
                     water_reducer_pqty: 1,
                     hardener_pqty: 1,
                     water_pqty: 1000,
-                    water_unlimited: true,
+                    bag_yd3_sand: 0,
+                    bag_yd3_stone_dust: 122,
+                    bag_yd3_gcc400: 0,
+                    bag_yd3_regular_gravel: 0,
+                    bag_yd3_chip_gravel: 0,
+                    bag_yd3_white_gravel: 0,
+                    bag_yd3_white_lime: 0,
                 };
+                state.inventory.water_unlimited = true;
                 updatePricesUI();
                 calculate();
                 saveState();
+                saveInventory();
             } else {
                 elements.btnResetPrices.dataset.confirm = '1';
                 elements.btnResetPrices.textContent = 'Confirm reset?';
@@ -1080,7 +1147,7 @@ const setupEventListeners = () => {
     }
 
     // Controls
-    elements.toggleNoCosts.addEventListener('click', () => {
+    if (elements.toggleNoCosts) elements.toggleNoCosts.addEventListener('click', () => {
         state.no_costs = !state.no_costs;
         elements.toggleNoCosts.classList.toggle('active', state.no_costs);
         elements.toggleNoCosts.querySelector('.toggle-slider').style.transform = state.no_costs ? 'translateX(20px)' : 'translateX(0)';
@@ -1100,8 +1167,8 @@ const setupEventListeners = () => {
         });
     }
     
-    elements.btnCopySummary.addEventListener('click', copySummary);
-    elements.btnDownloadCsv.addEventListener('click', downloadCSV);
+    if (elements.btnCopySummary) elements.btnCopySummary.addEventListener('click', copySummary);
+    if (elements.btnDownloadCsv) elements.btnDownloadCsv.addEventListener('click', downloadCSV);
 
     const btnResetAll = document.getElementById('btn-reset-all');
     if (btnResetAll) btnResetAll.addEventListener('click', () => {
@@ -1223,13 +1290,96 @@ const setupEventListeners = () => {
         });
     }
 
+    // Production mode cycle button — tap to cycle Daily → Weekly → Monthly → Daily
+    const _prodModes = ['daily', 'weekly', 'monthly'];
+    const _prodModeLabels = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
+    const prodCycleBtn = document.getElementById('prod-mode-cycle');
+    const prodModeLabel = document.getElementById('prod-mode-label');
+    const prodGroups = {
+        daily:   document.getElementById('prod-target-daily-group'),
+        weekly:  document.getElementById('prod-target-weekly-group'),
+        monthly: document.getElementById('prod-target-monthly-group'),
+    };
+    const prodInputs = {
+        daily:   document.getElementById('production-target-daily'),
+        weekly:  document.getElementById('production-target-weekly'),
+        monthly: document.getElementById('production-target-monthly'),
+    };
+
+    const syncProdModeUI = () => {
+        const mode = state.inventory.production_mode;
+        if (prodModeLabel) prodModeLabel.textContent = _prodModeLabels[mode];
+        ['daily','weekly','monthly'].forEach(m => {
+            if (prodGroups[m]) prodGroups[m].style.display = m === mode ? '' : 'none';
+            if (prodInputs[m]) prodInputs[m].value = state.inventory['production_target_' + m] || 0;
+        });
+        const rateEl = document.getElementById('inventory-daily-rate');
+        if (rateEl) rateEl.textContent = state.project.pavers_per_day + ' pavers/day';
+    };
+
+    if (prodCycleBtn) {
+        prodCycleBtn.addEventListener('click', () => {
+            const idx = _prodModes.indexOf(state.inventory.production_mode);
+            state.inventory.production_mode = _prodModes[(idx + 1) % _prodModes.length];
+            syncProdModeUI();
+            saveInventory();
+            _inventoryMaterialKeys = '';
+            updateInventoryTab();
+        });
+    }
+
+    // Wire each target input independently
+    ['daily','weekly','monthly'].forEach(m => {
+        const el = prodInputs[m];
+        if (!el) return;
+        el.addEventListener('input', (e) => {
+            state.inventory['production_target_' + m] = parseFloat(e.target.value) || 0;
+            saveInventory();
+            _inventoryMaterialKeys = '';
+            updateInventoryTab();
+        });
+    });
+    syncProdModeUI();
+
     const targetEl = document.getElementById('target-additional-pavers');
+    const daysMultEl = document.getElementById('days-multiplier');
+    const daysHintEl = document.getElementById('days-multiplier-hint');
+
     if (targetEl) {
         targetEl.value = state.inventory.target_additional_pavers || 0;
         targetEl.addEventListener('input', (e) => {
             state.inventory.target_additional_pavers = parseFloat(e.target.value) || 0;
             saveInventory();
         });
+    }
+
+    if (daysMultEl) {
+        if (state.inventory.days_multiplier) daysMultEl.value = state.inventory.days_multiplier;
+        const updateDaysHint = () => {
+            const ppd = state.inventory.production_target || state.project.pavers_per_day || 0;
+            const days = parseFloat(daysMultEl.value) || 0;
+            if (days > 0 && ppd > 0) {
+                const pavers = Math.round(ppd * days);
+                if (daysHintEl) daysHintEl.textContent = `${ppd} pavers/day × ${days} days = ${pavers} pavers`;
+            } else {
+                if (daysHintEl) daysHintEl.textContent = '';
+            }
+        };
+        daysMultEl.addEventListener('input', () => {
+            const days = parseFloat(daysMultEl.value) || 0;
+            state.inventory.days_multiplier = days;
+            const ppd = state.inventory.production_target || state.project.pavers_per_day || 0;
+            if (days > 0 && ppd > 0) {
+                const pavers = Math.round(ppd * days);
+                state.inventory.target_additional_pavers = pavers;
+                if (targetEl) targetEl.value = pavers;
+            }
+            updateDaysHint();
+            saveInventory();
+            _inventoryMaterialKeys = '';
+            updateInventoryTab();
+        });
+        updateDaysHint();
     }
 
     const genOrderEl = document.getElementById('btn-generate-order');
@@ -1281,7 +1431,13 @@ const updatePricesUI = () => {
     if (elements.reorderMacroFibre) elements.reorderMacroFibre.value = state.prices.reorder_macro_fibre;
     if (elements.reorderWaterReducer) elements.reorderWaterReducer.value = state.prices.reorder_water_reducer;
     if (elements.reorderHardener) elements.reorderHardener.value = state.prices.reorder_hardener;
+    // Bag sizes (yd³/bag)
+    ['sand', 'stone_dust', 'gcc400', 'regular_gravel', 'chip_gravel', 'white_gravel', 'white_lime'].forEach(mat => {
+        const el = document.getElementById(`bag-yd3-${mat.replace(/_/g, '-')}`);
+        if (el) el.value = state.prices[`bag_yd3_${mat}`] || 0;
+    });
     // Water unlimited toggle state
+    try {
         const input = {
             project: { ...state.project, wage_rate: state.project.wage_rate * (state.project.workers || 1) },
             mix_parts: mix.mix_parts,
@@ -1324,14 +1480,24 @@ const updateUI = () => {
     sEl('cement-white', `${formatVolume(r.cement.white_volume_l)} / ${formatBags(r.cement.white_bags)}`);
     sEl('cement-total', formatWeight(r.cement.cement_weight_kg));
 
-    // Fine aggregates
-    sEl('fine-sand', formatVolume(r.fine_aggregates.sand_volume_l));
-    sEl('fine-stone-dust', formatVolume(r.fine_aggregates.stone_dust_b_volume_l));
-    sEl('fine-gcc400', formatVolume(r.fine_aggregates.gcc400_b_volume_l));
+    // Fine aggregates — show L + yd³ + bags where bag size is configured
+    const fmtFineAgg = (volumeL, stockKey) => {
+        const L_PER_M3 = 1000;
+        const M3_PER_YD3 = 0.764555;
+        const yd3 = (volumeL / L_PER_M3) / M3_PER_YD3;
+        const bagCount = yd3ToBags(yd3, stockKey);
+        let s = `${formatVolume(volumeL)} / ${formatVolumeYd3(yd3)}`;
+        if (bagCount !== null) s += ` / ${formatBags(bagCount)}`;
+        return s;
+    };
+    sEl('fine-sand', fmtFineAgg(r.fine_aggregates.sand_volume_l, 'sand_yd3'));
+    sEl('fine-stone-dust', fmtFineAgg(r.fine_aggregates.stone_dust_b_volume_l, 'stone_dust_b_yd3'));
+    sEl('fine-gcc400', fmtFineAgg(r.fine_aggregates.gcc400_b_volume_l, 'gcc400_b_yd3'));
     sEl('fine-total', formatVolume(r.fine_aggregates.add_b_volume_l));
 
-    // Coarse aggregates
-    sEl('coarse-total', `${formatVolume(r.coarse_aggregates.add_c_volume_l)} (${formatVolumeYd3(r.coarse_aggregates.add_c_volume_yd3)})`);
+    // Coarse aggregates — show L + yd³ + bags where configured
+    const coarseYd3 = r.coarse_aggregates.add_c_volume_yd3;
+    sEl('coarse-total', `${formatVolume(r.coarse_aggregates.add_c_volume_l)} (${formatVolumeYd3(coarseYd3)})`);
 
     // Water results
     sEl('water-volume', formatVolume(r.water.water_volume_l));
@@ -1792,18 +1958,16 @@ Total Profit (${state.project.quantity} pavers),${formatNum((state.project.selli
 };
 
 const getPigmentPrice = (name) => {
-    const pigmentData = {
-        'Red Iron Oxide': 1371.72,
-        'Yellow Iron Oxide': 600.54,
-        'Black Iron Oxide': 1919.34,
-        'Blue Pigment': 7143,
-        'Green Pigment': 1518.57,
-        'Brown Pigment': 3000,
-        'White Titanium Dioxide': 2591.32,
-        'None': 0,
-    };
-    return pigmentData[name] || 0;
+    // Pigments priced at $600/lb
+    const LB_TO_KG = 0.453592;
+    const pricePerLb = 600;
+    const pricePerKg = pricePerLb / LB_TO_KG; // ~1322.77 JMD/kg
+    if (state.settings.pigment_unit_mode === 'lb') return pricePerLb;
+    return pricePerKg;
 };
+
+// Water reducer container: 5-gallon = 18.927 L
+const WATER_REDUCER_CONTAINER_L = 18.927;
 
 // ─── Inventory ──────────────────────────────────────────────────────────────
 
@@ -1817,6 +1981,12 @@ const saveInventory = () => {
             stock: state.inventory.stock,
             purchase_qtys: state.inventory.purchase_qtys,
             target_additional_pavers: state.inventory.target_additional_pavers,
+            days_multiplier: state.inventory.days_multiplier,
+            production_mode: state.inventory.production_mode,
+            production_target_daily: state.inventory.production_target_daily,
+            production_target_weekly: state.inventory.production_target_weekly,
+            production_target_monthly: state.inventory.production_target_monthly,
+            water_unlimited: state.inventory.water_unlimited,
             pavers_produced_today: state.inventory.pavers_produced_today,
             production_date: new Date().toISOString().split('T')[0],
         }));
@@ -1847,6 +2017,21 @@ const loadInventory = () => {
         if (typeof data.target_additional_pavers === 'number') {
             state.inventory.target_additional_pavers = data.target_additional_pavers;
         }
+        if (typeof data.days_multiplier === 'number') {
+            state.inventory.days_multiplier = data.days_multiplier;
+        }
+        if (['daily','weekly','monthly'].includes(data.production_mode)) {
+            state.inventory.production_mode = data.production_mode;
+        }
+        ['daily','weekly','monthly'].forEach(m => {
+            const k = 'production_target_' + m;
+            if (typeof data[k] === 'number') state.inventory[k] = data[k];
+            // migrate old single-field saves
+            else if (m === 'daily' && typeof data.production_target === 'number') state.inventory.production_target_daily = data.production_target;
+        });
+        if (typeof data.water_unlimited === 'boolean') {
+            state.inventory.water_unlimited = data.water_unlimited;
+        }
         // Restore today's production count — reset if saved on a different date
         const today = new Date().toISOString().split('T')[0];
         if (data.production_date === today && typeof data.pavers_produced_today === 'number') {
@@ -1876,8 +2061,8 @@ const getStockPrice = (stockKey) => {
         case 'macro_fibre_kg':    return p.macro_fibre;
         case 'water_reducer_kg':  return p.water_reducer;
         case 'hardener_kg':       return p.hardener || 0;
-        case 'pigment1_l':        return getPigmentPrice(mix.pigments.pigment1_name);
-        case 'pigment2_l':        return getPigmentPrice(mix.pigments.pigment2_name);
+        case 'pigment1_kg':       return getPigmentPrice(mix.pigments.pigment1_name);
+        case 'pigment2_kg':       return getPigmentPrice(mix.pigments.pigment2_name);
         default:                  return 0;
     }
 };
@@ -1909,13 +2094,21 @@ const getReorderPoint = (stockKey) => {
 const roundToPurchaseUnit = (qty, stockKey) => {
     if (stockKey.endsWith('_bags')) return Math.ceil(qty);
     if (stockKey.endsWith('_yd3')) return Math.ceil(qty * 4) / 4;  // nearest 0.25 yd³
+    if (stockKey === 'water_reducer_kg') {
+        // Round to whole 5-gallon containers
+        const kgPerContainer = WATER_REDUCER_CONTAINER_L * 1.08 / 1; // density ~1.08 g/mL
+        return Math.ceil(qty / kgPerContainer);
+    }
     if (stockKey.endsWith('_kg'))  return Math.ceil(qty * 10) / 10;
     if (stockKey.endsWith('_l'))   return Math.ceil(qty * 10) / 10;
     return qty;
 };
 
 // Non-actionable materials excluded from bottleneck and purchase order
-const isActionable = (stockKey) => stockKey !== 'water_l';
+const isActionable = (stockKey) => {
+    if (stockKey === 'water_l' && state.inventory.water_unlimited) return false;
+    return stockKey !== 'water_l' || !state.inventory.water_unlimited;
+};
 
 // L to yd³ conversion factor
 const L_TO_YD3 = 1.30795 / 1000;
@@ -1929,8 +2122,12 @@ const calculateInventory = () => {
     if (effectiveQty <= 0) return [];
 
     const linked = state.inventory.linked_to_calculator;
+    // ppd is always the daily rate for runway calculations
+    const ppd = state.project.pavers_per_day || 1;
+    // production_target_* are separate fields per mode; read the active one
+    const _activeMode = state.inventory.production_mode || 'daily';
+    const productionTarget = state.inventory['production_target_' + _activeMode] || 0;
     const produced = state.inventory.pavers_produced_today;
-    const ppd = state.project.pavers_per_day;
     const s = state.inventory.stock;
 
     const makeMaterial = (key, name, stockKey, perPaverValue) => {
@@ -1943,7 +2140,11 @@ const calculateInventory = () => {
         const remaining = stock - usedToday;
         const dailyUsage = perPaver * ppd;
         const daysRemaining = dailyUsage > 0 ? remaining / dailyUsage : null;
-        return { key, name, stockKey, stock, linked: true, perPaver, usedToday, remaining, dailyUsage, daysRemaining };
+        // Target-based deficit: how much stock is needed vs what is on hand
+        const targetNeeded = productionTarget > 0 ? perPaver * productionTarget : 0;
+        const targetDeficit = targetNeeded > 0 ? targetNeeded - stock : 0;
+        const coversTarget = productionTarget > 0 ? stock >= targetNeeded : true;
+        return { key, name, stockKey, stock, linked: true, perPaver, usedToday, remaining, dailyUsage, daysRemaining, targetNeeded, targetDeficit, coversTarget };
     };
 
     const materials = [];
@@ -2005,11 +2206,11 @@ const calculateInventory = () => {
     }
 
     // Pigments
-    if (r.pigments.pigment1_l > 0) {
-        materials.push(makeMaterial('pigment1', getActiveMix().pigments.pigment1_name, 'pigment1_l', r.pigments.pigment1_l));
+    if (r.pigments.pigment1_kg > 0) {
+        materials.push(makeMaterial('pigment1', getActiveMix().pigments.pigment1_name, 'pigment1_kg', r.pigments.pigment1_kg));
     }
-    if (r.pigments.pigment2_l > 0) {
-        materials.push(makeMaterial('pigment2', getActiveMix().pigments.pigment2_name, 'pigment2_l', r.pigments.pigment2_l));
+    if (r.pigments.pigment2_kg > 0) {
+        materials.push(makeMaterial('pigment2', getActiveMix().pigments.pigment2_name, 'pigment2_kg', r.pigments.pigment2_kg));
     }
 
     return materials;
@@ -2058,7 +2259,7 @@ const stockKeyToPqty = {
     white_gravel_yd3: 'white_gravel_pqty', white_lime_yd3: 'white_lime_pqty',
     micro_fibre_kg: 'micro_fibre_pqty', macro_fibre_kg: 'macro_fibre_pqty',
     water_reducer_kg: 'water_reducer_pqty', hardener_kg: 'hardener_pqty',
-    pigment1_l: 'water_pqty', pigment2_l: 'water_pqty', water_l: 'water_pqty',
+    pigment1_kg: 'water_pqty', pigment2_kg: 'water_pqty', water_l: 'water_pqty',
 };
 
 const getPurchaseUnitSize = (stockKey) => {
@@ -2077,7 +2278,7 @@ const updatePurchaseRow = (m) => {
     const pillEl = document.getElementById(`inv-purchase-pill-${m.key}`);
     if (!pillEl) return;
     // Water unlimited — always hide
-    if (m.stockKey === 'water_l' && state.prices.water_unlimited !== false) {
+    if (m.stockKey === 'water_l' && state.inventory.water_unlimited !== false) {
         pillEl.style.display = 'none';
         return;
     }
@@ -2089,8 +2290,10 @@ const updatePurchaseRow = (m) => {
     pillEl.classList.remove('purchase-glow-low', 'purchase-glow-empty');
     if (alwaysShow && isDepleted) pillEl.classList.add('purchase-glow-empty');
     else if (alwaysShow && isLow) pillEl.classList.add('purchase-glow-low');
-    if (show && state.inventory.purchase_qtys[m.key] === undefined) {
-        state.inventory.purchase_qtys[m.key] = calcShortfall(m);
+    if (show) {
+        if (state.inventory.purchase_qtys[m.key] === undefined || state.inventory.purchase_qtys[m.key] === 0) {
+            state.inventory.purchase_qtys[m.key] = calcShortfall(m);
+        }
         const qtyEl = document.getElementById(`inv-purchase-qty-${m.key}`);
         if (qtyEl) qtyEl.textContent = state.inventory.purchase_qtys[m.key].toFixed(qtyDecimals(m.stockKey));
     }
@@ -2116,30 +2319,44 @@ const buildInventorySummary = (materials) => {
     const fmtC = v => 'JMD ' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const actionable = materials.filter(m => m.linked && isActionable(m.stockKey));
 
-    // All limiting materials sorted by days remaining (depleted first, then ascending)
-    const limitingMaterials = actionable
-        .filter(m => m.daysRemaining !== undefined)
+    // Runway: all materials with daily usage, sorted depleted-first then ascending days
+    const runwayMaterials = actionable
+        .filter(m => m.dailyUsage > 0)
         .map(m => ({
             name: m.name,
-            daysRemaining: (m.stock <= 0 || m.remaining <= 0) ? 0 : (m.daysRemaining || 0),
+            daysRemaining: (m.stock <= 0 || m.remaining <= 0) ? 0 : Math.max(0, m.daysRemaining || 0),
             isDepleted: m.stock <= 0 || m.remaining <= 0,
         }))
         .sort((a, b) => a.daysRemaining - b.daysRemaining);
 
-    const minDays = limitingMaterials.length > 0 ? limitingMaterials[0].daysRemaining : null;
+    const minDays = runwayMaterials.length > 0 ? runwayMaterials[0].daysRemaining : null;
 
-    // Daily material cost at current production rate
-    const ppd = state.project.pavers_per_day;
+    // Target deficit: materials short for the production target (if set)
+    const _mode = state.inventory.production_mode || 'daily';
+    const target = state.inventory['production_target_' + _mode] || 0;
+    const shortMaterials = target > 0
+        ? actionable
+            .filter(m => m.dailyUsage > 0 && !m.coversTarget)
+            .map(m => ({
+                name: m.name,
+                stockKey: m.stockKey,
+                needed: m.targetNeeded,
+                have: m.stock,
+                short: m.targetDeficit,
+            }))
+        : [];
+
+    // Daily material cost at project rate
+    const ppd = state.project.pavers_per_day || 1;
     const dailyCost = materials
         .filter(m => m.linked && m.perPaver > 0)
         .reduce((sum, m) => sum + m.perPaver * ppd * getStockPrice(m.stockKey), 0);
 
-    // Total restock cost (cost to repurchase current stock level)
-    const restockCost = materials
-        .filter(m => m.stock > 0)
-        .reduce((sum, m) => sum + m.stock * getStockPrice(m.stockKey), 0);
+    // Cost to purchase the shortfall
+    const targetShortfallCost = shortMaterials
+        .reduce((sum, m) => sum + m.short * getStockPrice(m.stockKey), 0);
 
-    return { limitingMaterials, minDays, dailyCost, restockCost, fmtC };
+    return { runwayMaterials, minDays, dailyCost, targetShortfallCost, fmtC, target, shortMaterials };
 };
 
 const renderSummaryCard = (materials) => {
@@ -2150,33 +2367,68 @@ const renderSummaryCard = (materials) => {
     if (!summary) { el.style.display = 'none'; return; }
     el.style.display = 'block';
 
-    const { limitingMaterials, minDays, dailyCost, restockCost, fmtC } = summary;
+    const { runwayMaterials, minDays, dailyCost, fmtC, target, shortMaterials, targetShortfallCost } = summary;
+    const modeLabel = state.inventory.production_mode === 'weekly' ? 'week'
+        : state.inventory.production_mode === 'monthly' ? 'month' : 'day';
 
+    const fmtQty = (stockKey, qty) => {
+        if (stockKey.endsWith('_bags')) return qty.toFixed(1) + ' bags';
+        if (stockKey.endsWith('_yd3')) return qty.toFixed(2) + ' yd³';
+        if (stockKey.endsWith('_kg')) return qty.toFixed(2) + ' kg';
+        if (stockKey.endsWith('_l')) return qty.toFixed(1) + ' L';
+        return qty.toFixed(2);
+    };
+
+    // Target check section (only shown when a target is entered)
+    let targetHtml = '';
+    if (target > 0) {
+        if (shortMaterials.length === 0) {
+            targetHtml = `<div style="padding:8px 10px;margin-bottom:10px;background:rgba(22,163,74,0.1);border-left:3px solid #16a34a;border-radius:4px;">
+                <span style="font-size:0.85rem;font-weight:600;color:#16a34a;">Stock covers ${target.toLocaleString()} pavers this ${modeLabel}</span>
+            </div>`;
+        } else {
+            const shortRows = shortMaterials.map(m => `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;border-bottom:1px solid var(--border-color);">
+                <span style="font-size:0.82rem;">${m.name}</span>
+                <span style="font-size:0.78rem;text-align:right;margin-left:8px;">
+                    <span style="color:var(--error-color);font-weight:600;">short ${fmtQty(m.stockKey, m.short)}</span>
+                    <span style="color:var(--text-secondary);"> · have ${fmtQty(m.stockKey, m.have)}, need ${fmtQty(m.stockKey, m.needed)}</span>
+                </span>
+            </div>`).join('');
+            targetHtml = `<div style="margin-bottom:10px;">
+                <div class="result-label" style="color:var(--error-color);margin-bottom:4px;">Short for ${target.toLocaleString()} pavers this ${modeLabel}</div>
+                ${shortRows}
+                ${targetShortfallCost > 0 ? `<div style="margin-top:6px;font-size:0.82rem;color:var(--text-secondary);">Cost to cover shortfall: <strong style="color:var(--text-primary);">${fmtC(targetShortfallCost)}</strong></div>` : ''}
+            </div>`;
+        }
+    }
+
+    // Runway section — always shown, lists every active material and its days of stock
     let runwayHtml;
-    if (limitingMaterials.length === 0) {
-        runwayHtml = `<div class="result-row"><span class="result-label">Production Runway</span><span class="result-value" style="color:var(--text-secondary);">—</span></div>`;
+    if (runwayMaterials.length === 0) {
+        runwayHtml = `<div class="result-row"><span class="result-label">Stock Runway</span><span class="result-value" style="color:var(--text-secondary);">No active materials</span></div>`;
     } else {
         const runwayVal = minDays !== null ? `${minDays.toFixed(1)} days` : '—';
-        const limitedByHtml = limitingMaterials.map(m => {
-            const daysText = m.isDepleted ? 'DEPLETED' : `${m.daysRemaining.toFixed(1)}d`;
-            const style = m.isDepleted || m.daysRemaining <= 2
-                ? 'color:var(--error-color);font-weight:600;'
+        const runwayRows = runwayMaterials.map(m => {
+            const daysText = m.isDepleted ? 'NO STOCK' : `${m.daysRemaining.toFixed(1)}d`;
+            const col = m.isDepleted ? 'color:var(--error-color);font-weight:600;'
+                : m.daysRemaining <= 2 ? 'color:#d97706;font-weight:600;'
                 : 'color:var(--text-secondary);';
-            return `<div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="font-size:0.82rem;">${m.name}</span><span style="font-size:0.82rem;${style}">${daysText}</span></div>`;
+            return `<div style="display:flex;justify-content:space-between;padding:2px 0;">
+                <span style="font-size:0.82rem;">${m.name}</span>
+                <span style="font-size:0.82rem;${col}">${daysText}</span>
+            </div>`;
         }).join('');
-
-        runwayHtml = `<div class="result-row"><span class="result-label">Production Runway</span><span class="result-value" style="font-weight:700;">${runwayVal}</span></div>
-            <div style="margin:6px 0 8px;"><div class="result-label" style="margin-bottom:4px;">Limited By</div>${limitedByHtml}</div>`;
+        runwayHtml = `<div class="result-row"><span class="result-label">Stock Runway</span><span class="result-value" style="font-weight:700;">${runwayVal}</span></div>
+            <div style="margin:4px 0 8px;">${runwayRows}</div>`;
     }
 
     el.innerHTML = `
         <h2 class="card-title">Stock Summary</h2>
+        ${targetHtml}
         ${runwayHtml}
-        <div class="result-row"><span class="result-label">Daily Material Cost</span><span class="result-value">${fmtC(dailyCost)}</span></div>
-        <div class="result-row"><span class="result-label">Restock Cost</span><span class="result-value">${fmtC(restockCost)}</span></div>
+        <div class="result-row" style="margin-top:4px;"><span class="result-label">Daily Material Cost</span><span class="result-value">${fmtC(dailyCost)}</span></div>
     `;
 };
-
 const renderInventoryUI = (materials) => {
     const container = document.getElementById('inventory-materials');
     if (!container) return;
@@ -2243,7 +2495,16 @@ const renderInventoryUI = (materials) => {
             html += `<div class="input-row">`;
             html += `<input type="number" id="inv-stock-${m.key}" class="input-number" value="${m.stock}" min="0" step="0.1" data-stock-key="${m.stockKey}">`;
             html += `<span class="input-unit">${esc(unit)}</span>`;
-            html += `</div></div>`;
+            html += `</div>`;
+            if (m.stockKey.endsWith('_yd3') && getYd3PerBag(m.stockKey) > 0) {
+                const bags = yd3ToBags(m.stock, m.stockKey);
+                html += `<div class="input-row" style="margin-top:4px;">`;
+                html += `<input type="number" id="inv-bags-${m.key}" class="input-number" value="${bags !== null ? bags.toFixed(2) : ''}" min="0" step="0.01" placeholder="bags" data-bags-key="${m.key}" data-stock-key="${m.stockKey}">`;
+                html += `<span class="input-unit">bags</span>`;
+                html += `</div>`;
+                html += `<p style="font-size:0.7rem;color:var(--text-secondary);margin:2px 0 0;">${getYd3PerBag(m.stockKey)} yd³/bag</p>`;
+            }
+            html += `</div>`;
 
             if (linked) {
                 html += `<div class="result-row"><span class="result-label">Per Paver</span><span class="result-value" id="inv-pp-${m.key}">--</span></div>`;
@@ -2263,11 +2524,37 @@ const renderInventoryUI = (materials) => {
 
     container.innerHTML = guidanceBanner + html;
 
-    // Wire up stock inputs
-    container.querySelectorAll('input[data-stock-key]').forEach(input => {
+    // Wire up stock inputs (yd³ primary inputs)
+    container.querySelectorAll('input[data-stock-key]:not([data-bags-key])').forEach(input => {
         input.addEventListener('input', (e) => {
             const stockKey = e.target.dataset.stockKey;
-            state.inventory.stock[stockKey] = parseFloat(e.target.value) || 0;
+            const yd3Val = parseFloat(e.target.value) || 0;
+            state.inventory.stock[stockKey] = yd3Val;
+            // Sync bags sibling input if present
+            if (stockKey.endsWith('_yd3')) {
+                const matKey = stockKey.slice(0, -4); // strip '_yd3'
+                const bagsEl = document.getElementById(`inv-bags-${matKey}`);
+                if (bagsEl) {
+                    const bags = yd3ToBags(yd3Val, stockKey);
+                    if (bags !== null) bagsEl.value = bags.toFixed(2);
+                }
+            }
+            saveInventory();
+            updateInventoryValues(calculateInventory());
+        });
+    });
+
+    // Wire up bag inputs — convert to yd³ and update primary input
+    container.querySelectorAll('input[data-bags-key]').forEach(input => {
+        input.addEventListener('input', (e) => {
+            const stockKey = e.target.dataset.stockKey;
+            const key = e.target.dataset.bagsKey;
+            const bags = parseFloat(e.target.value) || 0;
+            const yd3Val = bagsToYd3(bags, stockKey) || 0;
+            state.inventory.stock[stockKey] = yd3Val;
+            // Sync yd³ primary input
+            const yd3El = document.getElementById(`inv-stock-${key}`);
+            if (yd3El) yd3El.value = yd3Val.toFixed(3);
             saveInventory();
             updateInventoryValues(calculateInventory());
         });
@@ -2298,6 +2585,15 @@ const updateInventoryValues = (materials) => {
     materials.forEach(m => {
         const statusEl = document.getElementById(`inv-status-${m.key}`);
         if (!statusEl) return;
+
+        // Always sync bags display for yd³ materials
+        if (m.stockKey.endsWith('_yd3')) {
+            const bagsEl = document.getElementById(`inv-bags-${m.key}`);
+            if (bagsEl) {
+                const bags = yd3ToBags(m.stock, m.stockKey);
+                if (bags !== null) bagsEl.value = bags.toFixed(2);
+            }
+        }
 
         if (!linked || m.daysRemaining === undefined) {
             statusEl.textContent = '--';
@@ -2344,6 +2640,7 @@ const updateInventoryValues = (materials) => {
     });
 
     materials.forEach(updatePurchaseRow);
+    renderSummaryCard(materials);
 
     // Header stock status
     const stockStatusEl = document.getElementById('header-stock-status');
@@ -2390,9 +2687,9 @@ const generatePurchaseOrder = () => {
             const qty = roundToPurchaseUnit(Math.max(0, needed - available), m.stockKey);
             const unitPrice = getStockPrice(m.stockKey);
             const cost = qty * unitPrice;
-            return { name: m.name, qty, stockKey: m.stockKey, unitPrice, cost };
-        })
-        .filter(item => item.qty > 0);
+            const inStock = qty === 0;
+            return { name: m.name + (inStock ? ' ✓' : ''), qty, stockKey: m.stockKey, unitPrice, cost, inStock };
+        });
 
     // Add reorder-flagged materials not already covered by target calculation
     const reorderItems = materials
@@ -2413,7 +2710,7 @@ const generatePurchaseOrder = () => {
     const allItems = [...orderItems, ...reorderItems];
 
     if (allItems.length === 0) {
-        output.innerHTML = `<div class="purchase-order-empty">Current stock covers ${target} pavers. No materials needed.</div>`;
+        output.innerHTML = `<div class="purchase-order-empty">No active materials configured. Add a mix design first.</div>`;
         return;
     }
 
@@ -2434,17 +2731,53 @@ const generatePurchaseOrder = () => {
     }
 };
 
+const renderProjectProgress = () => {
+    const el = document.getElementById('inv-project-progress');
+    if (!el) return;
+    const qty = state.project.quantity || 0;
+    if (qty <= 0 || !state.results) { el.style.display = 'none'; return; }
+    const produced = state.inventory.pavers_produced_today;
+    const remaining = Math.max(0, qty - produced);
+    const pct = qty > 0 ? Math.min(100, (produced / qty) * 100) : 0;
+    const materials = calculateInventory();
+    const stockCoversRemaining = materials
+        .filter(m => m.linked && m.perPaver > 0)
+        .every(m => m.stock >= m.perPaver * remaining);
+    const shortfalls = materials
+        .filter(m => m.linked && m.perPaver > 0 && m.stock < m.perPaver * remaining)
+        .map(m => {
+            const need = m.perPaver * remaining;
+            const short = need - m.stock;
+            return m.name;
+        });
+    el.style.display = 'block';
+    el.innerHTML = `
+        <h2 class="card-title">Project Progress</h2>
+        <div class="result-row"><span class="result-label">Target</span><span class="result-value">${qty.toLocaleString()} pavers</span></div>
+        <div class="result-row"><span class="result-label">Produced Today</span><span class="result-value">${produced.toLocaleString()}</span></div>
+        <div class="result-row"><span class="result-label">Remaining</span><span class="result-value">${remaining.toLocaleString()} (${pct.toFixed(1)}% done)</span></div>
+        <div style="height:8px;background:var(--input-bg);border-radius:4px;margin:8px 0;"><div style="height:100%;width:${pct.toFixed(1)}%;background:var(--accent-color);border-radius:4px;"></div></div>
+        <div class="result-row"><span class="result-label">Stock covers remaining?</span><span class="result-value" style="color:${stockCoversRemaining ? '#16a34a' : 'var(--error-color)'};font-weight:600;">${stockCoversRemaining ? 'Yes' : 'No — short: ' + shortfalls.join(', ')}</span></div>
+    `;
+};
+
 const updateInventoryTab = () => {
     const materials = calculateInventory();
     renderInventoryUI(materials);
 
     const rateEl = document.getElementById('inventory-daily-rate');
-    if (rateEl) rateEl.textContent = `${state.project.pavers_per_day} pavers/day`;
+    if (rateEl) {
+        const mult = state.inventory.production_mode === 'weekly' ? 7 : state.inventory.production_mode === 'monthly' ? 30 : 1;
+        const unit = state.inventory.production_mode === 'weekly' ? 'week' : state.inventory.production_mode === 'monthly' ? 'month' : 'day';
+        rateEl.textContent = `${state.project.pavers_per_day * mult} pavers/${unit}`;
+    }
 
     const orderSection = document.getElementById('purchase-order-section');
     if (orderSection) {
         orderSection.style.display = state.inventory.linked_to_calculator ? 'block' : 'none';
     }
+
+    renderProjectProgress();
 
     // Sync persisted pavers-produced-today to input
     const producedEl = document.getElementById('inventory-pavers-today');
@@ -2609,6 +2942,31 @@ const loadState = () => {
             if (typeof saved.no_costs === 'boolean') state.no_costs = saved.no_costs;
             if (typeof saved.color_preview === 'boolean') state.color_preview = saved.color_preview;
         }
+        // Migrate pigment stock keys: pigment1_l → pigment1_kg, pigment2_l → pigment2_kg
+        if (state.inventory && state.inventory.stock) {
+            const sk = state.inventory.stock;
+            if ('pigment1_l' in sk) { sk.pigment1_kg = sk.pigment1_l || 0; delete sk.pigment1_l; }
+            if ('pigment2_l' in sk) { sk.pigment2_kg = sk.pigment2_l || 0; delete sk.pigment2_l; }
+        }
+        // Ensure new state fields have defaults
+        if (!state.settings.coarse_unit_mode) state.settings.coarse_unit_mode = 'bags';
+        if (!state.settings.pigment_unit_mode) state.settings.pigment_unit_mode = 'lb';
+        if (state.inventory && typeof state.inventory.water_unlimited !== 'boolean') state.inventory.water_unlimited = true;
+        if (state.inventory && typeof state.inventory.days_multiplier !== 'number') state.inventory.days_multiplier = 0;
+        // Migrate prices to updated defaults if not yet set
+        if (state.prices.sand === 600) state.prices.sand = 5000;
+        if (state.prices.stone_dust === 180) state.prices.stone_dust = 1800;
+        if (state.prices.gcc400 === 600) state.prices.gcc400 = 17891;
+        if (state.prices.regular_gravel === 600) state.prices.regular_gravel = 4000;
+        if (state.prices.chip_gravel === 600) state.prices.chip_gravel = 4000;
+        // Add bag_yd3 fields if not present
+        if (state.prices.bag_yd3_sand === undefined) state.prices.bag_yd3_sand = 0;
+        if (state.prices.bag_yd3_stone_dust === undefined) state.prices.bag_yd3_stone_dust = 122;
+        if (state.prices.bag_yd3_gcc400 === undefined) state.prices.bag_yd3_gcc400 = 0;
+        if (state.prices.bag_yd3_regular_gravel === undefined) state.prices.bag_yd3_regular_gravel = 0;
+        if (state.prices.bag_yd3_chip_gravel === undefined) state.prices.bag_yd3_chip_gravel = 0;
+        if (state.prices.bag_yd3_white_gravel === undefined) state.prices.bag_yd3_white_gravel = 0;
+        if (state.prices.bag_yd3_white_lime === undefined) state.prices.bag_yd3_white_lime = 0;
     } catch (_) {}
 };
 
@@ -2616,15 +2974,15 @@ const syncInputsFromState = () => {
     // Project
     const pnEl = document.getElementById('project-name');
     if (pnEl) pnEl.value = state.project.project_name || '';
-    elements.projectLength.value = state.project.length;
-    elements.projectWidth.value = state.project.width;
-    elements.projectThickness.value = state.project.thickness;
-    elements.projectQuantity.value = state.project.quantity;
-    elements.projectWaste.value = state.project.waste_factor;
-    elements.projectPaversPerDay.value = state.project.pavers_per_day;
+    if (elements.projectLength) elements.projectLength.value = state.project.length;
+    if (elements.projectWidth) elements.projectWidth.value = state.project.width;
+    if (elements.projectThickness) elements.projectThickness.value = state.project.thickness;
+    if (elements.projectQuantity) elements.projectQuantity.value = state.project.quantity;
+    if (elements.projectWaste) elements.projectWaste.value = state.project.waste_factor;
+    if (elements.projectPaversPerDay) elements.projectPaversPerDay.value = state.project.pavers_per_day;
     if (elements.projectWorkers) elements.projectWorkers.value = state.project.workers || 1;
-    elements.projectWageRate.value = state.project.wage_rate;
-    elements.projectTransport.value = state.project.raw_material_transport;
+    if (elements.projectWageRate) elements.projectWageRate.value = state.project.wage_rate;
+    if (elements.projectTransport) elements.projectTransport.value = state.project.raw_material_transport;
     const spEl = document.getElementById('project-selling-price');
     if (spEl) spEl.value = state.project.selling_price;
     // Mix inputs are inside dynamic mix sections — renderMixSections() handles syncing those
@@ -2663,8 +3021,12 @@ const init = async () => {
         // Hide loading overlay
         elements.loadingOverlay.style.display = 'none';
 
-        // Setup event listeners
-        setupEventListeners();
+        // Setup event listeners (guard against missing DOM elements)
+        try {
+            setupEventListeners();
+        } catch (e) {
+            console.error('[Sprat] setupEventListeners failed:', e.message);
+        }
         
         // Load persisted inventory state
         loadInventory();
@@ -2680,16 +3042,37 @@ const init = async () => {
                 hintEl.textContent = 'Stock ledger only. Toggle on to link usage to the mix calculator.';
             }
         }
+        // Water unlimited toggle
+        const waterToggleEl = document.getElementById('toggle-water-unlimited');
+        if (waterToggleEl) {
+            waterToggleEl.setAttribute('aria-checked', String(state.inventory.water_unlimited));
+            waterToggleEl.classList.toggle('active', state.inventory.water_unlimited);
+            const wSlider = waterToggleEl.querySelector('.toggle-slider');
+            if (wSlider) wSlider.style.transform = state.inventory.water_unlimited ? 'translateX(20px)' : 'translateX(0)';
+        }
 
         // Load persisted calculator state
         loadState();
-        syncInputsFromState();
+        try { syncInputsFromState(); } catch (e) { console.error('[Sprat] syncInputsFromState failed:', e.message); }
 
         // Pigment selects are now inside dynamic mix sections (built by renderMixSections above).
         // PIGMENT_OPTIONS array in this file provides the option list — no WASM call needed here.
 
         // Initialize WASM module before first calculation
-        await wasmInit();
+        await loadWasmModule();
+        if (typeof wasmInit === 'function') {
+            await wasmInit();
+        } else {
+            console.log('[Sprat] WASM module not loaded — activating JavaScript fallback');
+            // Activate fallback.js which handles all calculations
+            if (typeof window.activateFallback === 'function') {
+                window.activateFallback();
+            } else {
+                window.__fallbackActive = true;
+            }
+            elements.loadingOverlay.style.display = 'none';
+            return;
+        }
 
         // Initial calculation
         await calculate();

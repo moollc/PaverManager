@@ -263,5 +263,5 @@ class IconManager {
 const iconManager = new IconManager();
 iconManager.injectIcons();
 
-// Export for use in other modules
-export { iconManager };
+// iconManager is now global — no export needed for file:// usage
+window.iconManager = iconManager;
